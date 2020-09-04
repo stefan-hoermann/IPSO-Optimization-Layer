@@ -13,16 +13,16 @@ def add_typeday(m):
         initialize=1,
         doc='Pre-factor for variable costs and emissions for annual result for type days = 1')
 
-    # m.t_endofday = pyomo.Set(
-    #     within=m.t,
-    #     initialize=[i * 24 * m.dt for i in list(range(1,1+int(len(m.timesteps) / m.dt / 24)))],
-    #     ordered=True,
-    #     doc='timestep at the end of each day')
-    #
-    # m.res_storage_state_cyclicity_typeday = pyomo.Constraint(
-    #     m.t_endofday, m.sto_tuples,
-    #     rule=res_storage_state_cyclicity_typeday_rule,
-    #     doc='storage content initial == storage content at the end of each day')
+    m.t_endofday = pyomo.Set(
+        within=m.t,
+        initialize=[i * 24 * m.dt for i in list(range(1,1+int(len(m.timesteps) / m.dt / 24)))],
+        ordered=True,
+        doc='timestep at the end of each day')
+
+    m.res_storage_state_cyclicity_typeday = pyomo.Constraint(
+        m.t_endofday, m.sto_tuples,
+        rule=res_storage_state_cyclicity_typeday_rule,
+        doc='storage content initial == storage content at the end of each day')
 
     return m
 

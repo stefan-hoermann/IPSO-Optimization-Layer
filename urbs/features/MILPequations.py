@@ -26,7 +26,7 @@ def validate_MILP_results(prob):
     pro_mode_startup = get_entity(prob, 'pro_mode_startup')
 
     for i in cap_pro.index:
-        if not (cap_pro.loc[i] == 0 or cap_pro.loc[i] == 1 or pd.isna(cap_pro.loc[i])):
+        if not (cap_pro.loc[i] == 0 or cap_pro.loc[i] == 1 or pd.isna(cap_pro.loc[i]) or cap_pro.loc[i] == 'None'):
             print('Warning, Boolean Value not 1 or 0:', i, cap_pro.loc[i])
 
     for i in cap_sto.index:
@@ -34,15 +34,13 @@ def validate_MILP_results(prob):
             print('Warning, Boolean Value not 1 or 0:', i, cap_sto.loc[i])
 
     for i in cap_tra.index:
-        if not (cap_tra.loc[i] == 0 or cap_tra.loc[i] == 1 or pd.isna(cap_tra.loc[i])):
+        if not (cap_tra.loc[i] == 0 or cap_tra.loc[i] == 1 or pd.isna(cap_tra.loc[i]) or cap_tra.loc[i] == 'None'):
             print('Warning, Boolean Value not 1 or 0:', i, cap_tra.loc[i])
 
-    for i in pro_mode_run.index:
-        if not (pro_mode_run.loc[i] == 0 or pro_mode_run.loc[i] == 1 or pd.isna(pro_mode_run.loc[i])):
-            # raise ValueError(i, "Problem with binary value")
-            print('Warning, Boolean Value not 1 or 0:', i, pro_mode_run.loc[i])
-
-    for i in pro_mode_startup.index:
-        if not (pro_mode_startup.loc[i] == 0 or pro_mode_startup.loc[i] == 1 or pd.isna(pro_mode_startup.loc[i])):
-            # raise ValueError(i, "Problem with binary value")
-            print('Warning, Boolean Value not 1 or 0:', i, pro_mode_startup.loc[i])
+    # for i in pro_mode_run.index:
+    #     if not (pro_mode_run.loc[i] == 0 or pro_mode_run.loc[i] == 1 or pd.isna(pro_mode_run.loc[i])):
+    #         print('Warning, Boolean Value not 1 or 0:', i, pro_mode_run.loc[i])
+    #
+    # for i in pro_mode_startup.index:
+    #     if not (pro_mode_startup.loc[i] == 0 or pro_mode_startup.loc[i] == 1 or pd.isna(pro_mode_startup.loc[i])):
+    #         print('Warning, Boolean Value not 1 or 0:', i, pro_mode_startup.loc[i])

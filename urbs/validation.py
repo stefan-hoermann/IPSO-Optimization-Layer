@@ -208,6 +208,12 @@ def validate_input(data):
                 print('Warning: Tolerance for integer variable is 1e-5, too high values might lead to unexpected '
                       'behavior. Check cap-up at', i)
 
+    # prevent 'inf'/'inf'
+    if not data['storage']['class'].empty:
+        for i in data['storage'].index.tolist():
+            if math.isinf(data['storage'].loc[i, 'cap-up-c']):
+                raise ValueError('Can not use inf at cap-up-c', i, 'while using class')
+
 # report that variable costs may have error if used with CO2 minimization and DCPF
 def validate_dc_objective(data, objective):
     if not data['transmission'].empty:

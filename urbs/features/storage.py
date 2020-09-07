@@ -119,6 +119,11 @@ def add_storage(m):
         rule=def_storage_energy_power_ratio_rule,
         doc='storage capacity = storage power * storage E2P ratio')
 
+    # storage class
+    m.storage_class = pyomo.Constraint(
+        m.sto_tuples,
+        rule=def_storage_class_rule,
+        doc='storage class, if items have the same class, their expansion is connected')
     return m
 
 
@@ -248,6 +253,17 @@ def def_storage_energy_power_ratio_rule(m, stf, sit, sto, com):
     return (m.cap_sto_c[stf, sit, sto, com] == m.cap_sto_p[stf, sit, sto, com] *
             m.storage_dict['ep-ratio'][(stf, sit, sto, com)])
 
+
+def def_storage_class_rule(m, stf, sit, sto, com):
+    # storage class, if items have the same class, their expansion is connected
+    # E_sto_new_1 * E_cap_up_1 == E_sto_new_2 * E_cap_up_2
+    for i in m.sto_tuples:
+        if m.storage_dict['class'][stf, sit, sto, com] == m.storage_dict['class'][i] and (stf, sit, sto, com) == i:
+            return pyomo.Constraint.Skip
+        elif m.storage_dict['class'][stf, sit, sto, com] == m.storage_dict['class'][i]:
+            return m.cap_sto_c_new[stf, sit, sto, com] * m.storage_dict['cap-up-c'][stf, sit, sto, com] == \
+                   m.storage_dict['cap-up-c'][i] * m.cap_sto_c_new[i]
+    return pyomo.Constraint.Skip
 
 # storage balance
 def storage_balance(m, tm, stf, sit, com):

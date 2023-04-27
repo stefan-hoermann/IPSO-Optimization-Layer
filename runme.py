@@ -10,6 +10,7 @@ input_path = os.path.join(input_dir, input_files)
 result_name = 'Run'
 result_dir = urbs.prepare_result_directory(result_name)  # name + time stamp
 
+# test
 # copy input file to result directory
 try:
     shutil.copytree(input_path, os.path.join(result_dir, input_dir))

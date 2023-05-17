@@ -3,7 +3,8 @@ import shutil
 import urbs
 
 
-input_files = 'single_year_example.xlsx'  # for single year file name, for intertemporal folder name
+#input_files = 'single_year_example.xlsx'  # for single year file name, for intertemporal folder name
+input_files = 'Input_MILP.xlsx'
 input_dir = 'Input'
 input_path = os.path.join(input_dir, input_files)
 
@@ -23,21 +24,23 @@ shutil.copy(__file__, result_dir)
 objective = 'cost'  # set either 'cost' or 'CO2' as objective
 
 # Choose Solver (cplex, glpk, gurobi, ...)
-solver = 'glpk'
+solver = 'gurobi'
 
 # simulation timesteps
-(offset, length) = (3500, 24)  # time step selection
+(offset, length) = (0, 288)  # time step selection
 timesteps = range(offset, offset+length+1)
-dt = 1  # length of each time step (unit: hours)
+dt = 0.25  # length of each time step (unit: hours)
 
 # detailed reporting commodity/sites
-report_tuples = []
+report_tuples = [(2023, 'Hormann', 'Elec'),
+    (2023, 'Hormann', 'Heat')]
 
 # optional: define names for sites in report_tuples
 report_sites_name = {}
 
 # plotting commodities/sites
-plot_tuples = []
+plot_tuples = [(2023, 'Hormann', 'Elec'),
+     (2023, 'Hormann', 'Heat')]
 
 # optional: define names for sites in plot_tuples
 plot_sites_name = {}
@@ -48,7 +51,7 @@ plot_periods = {
 }
 
 # add or change plot colors
-my_colors = {}
+my_colors = {'Hormann': (230, 200, 200)}
 for country, color in my_colors.items():
     urbs.COLORS[country] = color
 

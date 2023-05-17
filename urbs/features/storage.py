@@ -119,6 +119,11 @@ def add_storage(m):
         rule=def_storage_energy_power_ratio_rule,
         doc='storage capacity = storage power * storage E2P ratio')
 
+    # storage class
+    m.storage_class = pyomo.Constraint(
+        m.sto_tuples,
+        rule=def_storage_class_rule,
+        doc='storage class, if items have the same class, their expansion is connected')
     return m
 
 
@@ -249,6 +254,17 @@ def def_storage_energy_power_ratio_rule(m, stf, sit, sto, com):
             m.storage_dict['ep-ratio'][(stf, sit, sto, com)])
 
 
+def def_storage_class_rule(m, stf, sit, sto, com):
+    # storage class, if items have the same class, their expansion is connected
+    # E_sto_new_1 * E_cap_up_1 == E_sto_new_2 * E_cap_up_2
+    for i in m.sto_tuples:
+        if m.storage_dict['class'][stf, sit, sto, com] == m.storage_dict['class'][i] and (stf, sit, sto, com) == i:
+            return pyomo.Constraint.Skip
+        elif m.storage_dict['class'][stf, sit, sto, com] == m.storage_dict['class'][i]:
+            return m.cap_sto_c_new[stf, sit, sto, com] * m.storage_dict['cap-up-c'][stf, sit, sto, com] == \
+                   m.storage_dict['cap-up-c'][i] * m.cap_sto_c_new[i]
+    return pyomo.Constraint.Skip
+
 # storage balance
 def storage_balance(m, tm, stf, sit, com):
     """called in commodity balance
@@ -289,11 +305,11 @@ def storage_cost(m, cost_type):
                    m.storage_dict['cost_factor'][s]
                    for s in m.sto_tuples)
     elif cost_type == 'Variable':
-        return sum(m.e_sto_con[(tm,) + s] * m.weight *
+        return sum(m.e_sto_con[(tm,) + s] * m.weight * m.typeday['weight_typeday'][(m.stf[1],tm)] *
                    m.storage_dict['var-cost-c'][s] *
                    m.storage_dict['cost_factor'][s] +
                    (m.e_sto_in[(tm,) + s] + m.e_sto_out[(tm,) + s]) *
-                   m.weight * m.storage_dict['var-cost-p'][s] *
+                   m.weight * m.typeday['weight_typeday'][(m.stf[1],tm)] * m.storage_dict['var-cost-p'][s] *
                    m.storage_dict['cost_factor'][s]
                    for tm in m.tm
                    for s in m.sto_tuples)

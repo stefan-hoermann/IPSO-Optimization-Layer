@@ -29,6 +29,8 @@ def identify_mode(data):
         'bsp': False,                   # buy sell price
         'tve': False,                   # time variable efficiency
         'dpf': False,                   # dc power flow
+        'tdy': False,                   # typedays
+        'mip': False,                   # MILP equations
         'exp': {                        # expansion
                 'pro': True,
                 'tra': False,
@@ -55,6 +57,10 @@ def identify_mode(data):
     if 'reactance' in data['transmission'].keys():
         if any(data['transmission']['reactance'] > 0):
             mode['dpf'] = True
+    if any(data['type day']['weight_typeday'] > 0):
+        mode['tdy'] = True
+    if not data['MILP'].empty:
+        mode['mip'] = True
 
     return mode
 

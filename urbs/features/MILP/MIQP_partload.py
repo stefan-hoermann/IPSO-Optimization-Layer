@@ -46,6 +46,7 @@ def MIQP_partload(m):
         doc='pro_p_startup = E_start * cap(t) * R * start[0/1](t)'
             'R = input ratio at maximum operation point')
 
+    # deletes constraints defined in model.py to redifine them
     m.del_component(m.def_partial_process_input)
     m.del_component(m.def_partial_process_input_index)
     m.del_component(m.def_partial_process_output)
@@ -77,7 +78,6 @@ def MIQP_partload(m):
         doc='e_pro_out = (offset + slope * tau_pro) * eff_factor'
             'slope = (R -  min_fraction * r) / (1 - min_fraction); offset = R - slope')
     return m
-
 
 def res_throughput_by_capacity_min_MILP_rule(m, tm, stf, sit, pro):
     # run[0/1] * cap_pro * min - fraction <= tau_pro
@@ -124,11 +124,12 @@ def def_partial_process_input_MIQP_rule(m, tm, stf, sit, pro, coin):
            m.dt * m.pro_p_in_offset_spec[stf, sit, pro, coin] * m.cap_pro[stf, sit, pro] * \
            m.pro_mode_run[tm, stf, sit, pro] + \
            m.pro_p_in_slope[(stf, sit, pro, coin)] * m.tau_pro[tm, stf, sit, pro] \
-           + m.dt * m.pro_p_startup[tm, stf, sit, pro,coin]
+           + m.dt * m.pro_p_startup[tm, stf, sit, pro, coin]
 
 
 def def_partial_process_output_MIQP_rule(m, tm, stf, sit, pro, coo):
     # e_pro_out = offset + slope * tau_pro
+    # e_pro_out = r * tau_pro + ((R-r)/(1-minfract))*Input^2
     return m.e_pro_out[tm, stf, sit, pro, coo] == \
            m.dt * m.pro_p_out_offset_spec[stf, sit, pro, coo] * m.cap_pro[stf, sit, pro] * \
            m.pro_mode_run[tm, stf, sit, pro] + \

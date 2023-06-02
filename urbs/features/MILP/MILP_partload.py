@@ -1,6 +1,7 @@
 from .MILP_startupcosts import MILP_startupcosts
 from .MILP_offset_slope import MILP_calc_offset_slope
 from .MILP_offset_slope import MILP_pro_p_offset
+from .MILP_min_operation_time import MILP_min_operation_time
 import pyomo.core as pyomo
 import pandas as pd
 
@@ -29,7 +30,7 @@ def MILP_partload(m):
 
     # MILP constraints for offset
     m = MILP_pro_p_offset(m)
-
+    m = MILP_min_operation_time(m)
     m.del_component(m.def_partial_process_input)
     m.del_component(m.def_partial_process_input_index)
     m.del_component(m.def_partial_process_output)

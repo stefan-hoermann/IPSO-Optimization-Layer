@@ -18,29 +18,61 @@ def MILP_min_operation_time(m):
         rule=res_pro_min_cons_op_time_rule_2,
         doc='run(t) >= out_last_n_timesteps[1/0] - (1 - run(t-1))')
 
+    m.res_pro_min_cons_op_time_3 = pyomo.Constraint(
+        m.pro_partial_tuples,
+        rule=res_pro_min_cons_op_time_rule_3,
+        doc='run(0) == 0 if not active before')
+
+    # m.res_pro_min_cons_op_time_test_rule = pyomo.Constraint(
+    #     m.pro_partial_tuples,
+    #     rule=res_pro_min_cons_test,
+    #     doc='run(0) == 0 if not active before')
     return m
 
+# def res_pro_min_cons_test(m, stf, sit, pro):
+#     if m.process_dict['min-con-op-time'][(stf, sit, pro)] > 0:
+#         return m.pro_mode_run[15, stf, sit, pro] == 1
+#     else:
+#         return pyomo.Constraint.Skip
+
+
 def res_pro_min_cons_op_time_rule_1(m, tm, stf, sit, pro):
+    # Constraint is skipped if there is no min-con-op time
+    if m.process_dict['min-con-op-time'][(stf, sit, pro)] <= 0:
+        return pyomo.Constraint.Skip
+    # If the process is already active at the start, it has to remain active for min-con-op-time - pre-active-timesteps
+    # -> NO optimization
+    # if not, the initial state is set to beeing of (rule 3).
+    if m.process_dict['pre-active-timesteps'][(stf, sit, pro)] > 0 and\
+            tm <= m.process_dict['min-con-op-time'][(stf, sit, pro)] - m.process_dict['pre-active-timesteps'][(stf, sit, pro)]:
+        return m.pro_mode_run[tm, stf, sit, pro] == 1
+
+    # If the process is not active at the start, the optimization begins right away:
     # n * out_last_n_timesteps[1/0] >= (1 - run(t-1)) + (1 - run(t-i)) + … + (1 - run(t-n))
     # Hereby n is the amount of timesteps the process has to stay active.
-    if m.process_dict['min-con-op-time'][(stf, sit, pro)] <= 0 or tm <= 1:
-        return pyomo.Constraint.Skip
-
     if tm <= m.process_dict['min-con-op-time'][(stf, sit, pro)]:
         return m.pro_out_last_n_timesteps[tm, stf, sit, pro] * tm >=\
-               sum((1 - m.pro_mode_run[tm - i, stf, sit, pro]) for i in range(1, tm-1))
+               sum((1 - m.pro_mode_run[tm - i, stf, sit, pro]) for i in range(1, tm+1))
 
     else:
         return m.pro_out_last_n_timesteps[tm, stf, sit, pro] * m.process_dict['min-con-op-time'][(stf, sit, pro)] >= \
-               sum((1 - m.pro_mode_run[tm - i, stf, sit, pro]) for i in range(1, m.process_dict['min-con-op-time'][(stf, sit, pro)]))
-
+               sum((1 - m.pro_mode_run[tm - i, stf, sit, pro])
+                   for i in range(1, m.process_dict['min-con-op-time'][(stf, sit, pro)] + 1))
 
 
 def res_pro_min_cons_op_time_rule_2(m, tm, stf, sit, pro):
     # run(t) >= out_last_n_timesteps[1/0] - (1 - run(t-1))
-    if m.process_dict['min-con-op-time'][(stf, sit, pro)] <= 0 or tm <= 1:
+    if m.process_dict['min-con-op-time'][(stf, sit, pro)] <= 0:
         return pyomo.Constraint.Skip
 
     else:
         return m.pro_mode_run[tm, stf, sit, pro] >= m.pro_out_last_n_timesteps[tm, stf, sit, pro] - \
                (1 - m.pro_mode_run[tm - 1, stf, sit, pro])
+
+
+def res_pro_min_cons_op_time_rule_3(m, stf, sit, pro):
+    # initializes pro_mode_run to 0 if the process is not active before
+    if m.process_dict['min-con-op-time'][(stf, sit, pro)] > 0 and m.process_dict['pre-active-timesteps'][(stf, sit, pro)] == 0:
+        return m.pro_mode_run[0, stf, sit, pro] == 0
+    else:
+        return pyomo.Constraint.Skip

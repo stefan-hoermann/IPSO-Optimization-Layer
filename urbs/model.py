@@ -372,6 +372,7 @@ def create_model(data, dt=1, timesteps=None, objective='cost',
             ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
             ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
 
+    # is added later than the other features because it overrides some parts
     if m.mode['mip']:
         m = add_MILP_equations(m)
 

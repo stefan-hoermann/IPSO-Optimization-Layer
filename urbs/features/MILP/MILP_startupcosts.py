@@ -7,21 +7,27 @@ def MILP_startupcosts(m):
         m.tm, m.pro_partial_tuples,
         within=pyomo.Boolean,
         doc='Boolean: True if process started')
+    # Logic table for switch on:
+    # run[t] X run[t-1] X          X  rule1  X  rule2  X  rule3  X sum_rules
+    #   0    X    0     X start-up X   >=0   X   <=0   X  <=1    X    =0
+    #   0    X    1     X start-up X   >=-1  X   <=0   X  <=0    X    =0
+    #   1    X    0     X start-up X   >=1   X   <=1   X  <=1    X    =1
+    #   1    X    1     X start-up X   >=0   X   <=1   X  <=0    X    =0
 
     m.pro_mode_start_up1 = pyomo.Constraint(
         m.tm, m.pro_partial_tuples,
-        rule=pro_mode_start_up1_rule,
+        rule=pro_mode_start_up_rule1,
         doc='switch on >= run[t] - run [t-1]')
 
-    # m.pro_mode_start_up2 = pyomo.Constraint(
-    #     m.tm, m.pro_partial_tuples,
-    #     rule=pro_mode_start_up2_rule,
-    #     doc='switch on <= run[t]')
-    #
-    # m.pro_mode_start_up3 = pyomo.Constraint(
-    #     m.tm, m.pro_partial_tuples,
-    #     rule=pro_mode_start_up3_rule,
-    #     doc='switch on <= 1 - run [t-1]')
+    m.pro_mode_start_up2 = pyomo.Constraint(
+        m.tm, m.pro_partial_tuples,
+        rule=pro_mode_start_up_rule2,
+        doc='switch on <= run[t]')
+
+    m.pro_mode_start_up3 = pyomo.Constraint(
+        m.tm, m.pro_partial_tuples,
+        rule=pro_mode_start_up_rule3,
+        doc='switch on <= 1 - run [t-1]')
 
     m.pro_p_startup = pyomo.Var(
         m.tm, m.pro_partial_input_tuples,
@@ -36,7 +42,7 @@ def MILP_startupcosts(m):
     # 2. p_startup - (cap * startup_spec * R) >= -(1-startup) * cap-max * startup_spec * R
     #    -> p_startup >= (p_startup_spec*cap) if startup = 1
     # 3. p_startup <= startup * startup_spec * cap_max * R
-    # 4. p_startup >= startup * startup_spec * cap_max * R
+    # 4. p_startup >= - startup * startup_spec * cap_max * R
     m.pro_p_in_startup_lt = pyomo.Constraint(
         m.tm, m.pro_partial_input_tuples,
         rule=pro_p_in_startup_lt_rule,
@@ -65,18 +71,18 @@ def MILP_startupcosts(m):
     return m
 
 
-def pro_mode_start_up1_rule(m, tm, stf, sit, pro):
+def pro_mode_start_up_rule1(m, tm, stf, sit, pro):
     # switch on >= run[t] - run[t - 1]
     return m.pro_mode_startup[tm, stf, sit, pro] >= \
            m.pro_mode_run[tm, stf, sit, pro] - m.pro_mode_run[tm - 1, stf, sit, pro]
 
 
-def pro_mode_start_up2_rule(m, tm, stf, sit, pro):
+def pro_mode_start_up_rule2(m, tm, stf, sit, pro):
     # switch on <= run[t]
     return m.pro_mode_startup[tm, stf, sit, pro] <= m.pro_mode_run[tm, stf, sit, pro]
 
 
-def pro_mode_start_up3_rule(m, tm, stf, sit, pro):
+def pro_mode_start_up_rule3(m, tm, stf, sit, pro):
     # switch on <= 1 - run [t-1]
     return m.pro_mode_startup[tm, stf, sit, pro] <= 1 - m.pro_mode_run[tm - 1, stf, sit, pro]
 

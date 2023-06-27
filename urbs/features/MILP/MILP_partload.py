@@ -3,6 +3,7 @@ from .MILP_offset_slope import MILP_calc_offset_slope
 from .MILP_offset_slope import MILP_pro_p_offset
 from .MILP_min_operation_time import MILP_min_operation_time
 from .MILP_calculate_startup_input_output import MILP_calculate_startup_input_output
+from .MILP_calculate_startup_output_10eq import MILP_calculate_startup_output
 import pyomo.core as pyomo
 import pandas as pd
 
@@ -64,7 +65,7 @@ def MILP_partload(m):
         doc='e_pro_out = (offset + slope * tau_pro) * eff_factor'
             'slope = (R -  min_fraction * r) / (1 - min_fraction); offset = R - slope')
 
-    # m = MILP_calculate_startup_input_output(m)
+    m = MILP_calculate_startup_input_output(m)
     # m.def_test_rule = pyomo.Constraint(
     #     m.tm,
     #     (m.pro_partial_output_tuples -

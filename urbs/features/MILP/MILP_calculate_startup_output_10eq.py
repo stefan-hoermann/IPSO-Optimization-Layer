@@ -39,99 +39,68 @@ def MILP_calculate_startup_output(m):
          (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
         rule=def_partial_process_output_MILP_no_start_rule,
         doc='e_pro_out_no_start(t) = offset + slope * tau_pro(t)')
-    # m.def_partial_process_output_MILP_1 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_1,
-    #     doc='less power during start-up rule 1')
-    #
-    # m.def_partial_process_output_MILP_2 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_2,
-    #     doc='less power during start-up rule 2')
-    # m.def_partial_process_output_MILP_3 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_3,
-    #     doc='less power during start-up rule 3')
-    # m.def_partial_process_output_MILP_4 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_4,
-    #     doc='less power during start-up rule 4')
-    # m.def_partial_process_output_MILP_4_1 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_4_1,
-    #     doc='less power during start-up rule 4_1')
-    # m.def_partial_process_output_MILP_4_2 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_4_2,
-    #     doc='less power during start-up rule 4_2')
-    # m.def_partial_process_output_MILP_4_3 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_4_3,
-    #     doc='less power during start-up rule 4_3')
-    # m.def_partial_process_output_MILP_4_4 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_4_4,
-    #     doc='less power during start-up rule 4_4')
-    # m.def_partial_process_output_MILP_5 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_5,
-    #     doc='less power during start-up rule 5')
-    # m.def_partial_process_output_MILP_6 = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=res_partial_process_output_MILP_rule_6,
-    #     doc='less power during start-up rule 6')
+    m.def_partial_process_output_MILP_1 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_1,
+        doc='less power during start-up rule 1')
 
-    ########## ALTENATIVE #######
-    # run[1/0](t) does not have to be accounted for here since it is already implemented in e_pro_out_no_start
-    # e_pro_out - e_pro_out_no_start(t) * (tm - t_startup)/tm <= (1 - startup[1/0](t)) * e_out_max
-    # e_pro_out - e_pro_out_no_start(t) * (tm - t_startup)/tm >= - (1 - startup[1/0](t)) * e_out_max
-    # e_pro_out - e_pro_out_no_start(t) <= startup[1/0](t) * e_out_max
-    # e_pro_out - e_pro_out_no_start(t) >= - startup[1/0](t) * e_out_max
+    m.def_partial_process_output_MILP_2 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_2,
+        doc='less power during start-up rule 2')
+    m.def_partial_process_output_MILP_3 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_3,
+        doc='less power during start-up rule 3')
+    m.def_partial_process_output_MILP_4 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_4,
+        doc='less power during start-up rule 4')
+    m.def_partial_process_output_MILP_4_1 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_4_1,
+        doc='less power during start-up rule 4_1')
+    m.def_partial_process_output_MILP_4_2 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_4_2,
+        doc='less power during start-up rule 4_2')
+    m.def_partial_process_output_MILP_4_3 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_4_3,
+        doc='less power during start-up rule 4_3')
+    m.def_partial_process_output_MILP_4_4 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_4_4,
+        doc='less power during start-up rule 4_4')
+    m.def_partial_process_output_MILP_5 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_5,
+        doc='less power during start-up rule 5')
+    m.def_partial_process_output_MILP_6 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=res_partial_process_output_MILP_rule_6,
+        doc='less power during start-up rule 6')
 
-    m.def_partial_process_output_MILP_A = pyomo.Constraint(
-        m.tm,
-        (m.pro_partial_output_tuples -
-         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-        rule=def_partial_process_output_MILP_rule_A,
-        doc='less power during start-up rule 1')
-    m.def_partial_process_output_MILP_B = pyomo.Constraint(
-        m.tm,
-        (m.pro_partial_output_tuples -
-         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-        rule=def_partial_process_output_MILP_rule_B,
-        doc='less power during start-up rule 1')
-    m.def_partial_process_output_MILP_C = pyomo.Constraint(
-        m.tm,
-        (m.pro_partial_output_tuples -
-         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-        rule=def_partial_process_output_MILP_rule_C,
-        doc='less power during start-up rule 1')
-    m.def_partial_process_output_MILP_D = pyomo.Constraint(
-        m.tm,
-        (m.pro_partial_output_tuples -
-         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-        rule=def_partial_process_output_MILP_rule_D,
-        doc='less power during start-up rule 1')
 
     # m.def_partial_process_input = pyomo.Constraint(
     #     m.tm, m.pro_partial_input_tuples,

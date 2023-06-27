@@ -89,7 +89,7 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt,
     sce = scenario.__name__
     data = read_input(input_files, year)
     data = scenario(data)
-    validate_input(data)
+    validate_input(data, dt)
     validate_dc_objective(data, objective)
 
     # create model

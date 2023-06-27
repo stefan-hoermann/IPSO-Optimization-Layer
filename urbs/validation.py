@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import math
 
-def validate_input(data):
+def validate_input(data, dt):
     """ Input validation function
 
     This function raises errors if inconsistent or illogical inputs are
@@ -74,6 +74,18 @@ def validate_input(data):
     for index in data['process'].index:
         if data['process'].loc[index]['min-fraction'] > 1:
             raise ValueError('Ensure that min-fraction <= 1')
+
+    for index in data['process'].index:
+        if data['process'].loc[index]['start-up-duration'] > dt:
+            raise ValueError('Ensure that start-up-duration <= timestep length.')
+        if data['process'].loc[index]['start-up-duration'] < 0:
+            raise ValueError('Ensure that start-up-duration it positive.')
+
+    for index in data['process'].index:
+        if not data['process'].loc[index]['pre-active-timesteps'] % 1 == 0:
+            raise ValueError('Ensure that pre-active-timesteps is an integer.')
+
+
     if not data['transmission'].empty:
         for index in data['transmission'].index:
             if not (data['transmission'].loc[index]['cap-lo'] <=

@@ -110,6 +110,10 @@ def validate_input(data, dt):
                                          'are between 90 and 0 '
                                          'degrees')
 
+    for index in data['storage'].index:
+        if data['storage'].loc[index]['out-in-p-ratio'] <= 0:
+            raise ValueError('Ensure that out-in-p-ratio is bigger than 0')
+        
     if not data['storage'].empty:
         for index in data['storage'].index:
             if not (data['storage'].loc[index]['cap-lo-p'] <=

@@ -210,9 +210,9 @@ def res_storage_input_by_power_rule(m, t, stf, sit, sto, com):
 
 
 # storage output <= storage power
-def res_storage_output_by_power_rule(m, t, stf, sit, sto, co):
-    return (m.e_sto_out[t, stf, sit, sto, co] <= m.dt *
-            m.cap_sto_p[stf, sit, sto, co])
+def res_storage_output_by_power_rule(m, t, stf, sit, sto, com):
+    return (m.e_sto_out[t, stf, sit, sto, com] <= m.dt * m.cap_sto_p[stf, sit, sto, com]
+            * m.storage_dict['out-in-p-ratio'][(stf, sit, sto, com)])
 
 
 # storage content <= storage capacity

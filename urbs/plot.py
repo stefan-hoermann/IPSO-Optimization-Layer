@@ -171,7 +171,8 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
 
     # line plot for consumed commodities (divided by dt for power)
     for label, series in consumed.items():
-        ax1.plot(hoursteps[1:], -series.values / dt[0], label=label, linewidth=0.15)
+        commodity_color = to_color(label)  # get color for current commodity
+        ax1.plot(hoursteps[1:], -series.values / dt[0], label=label, linewidth=0.15, color=commodity_color)
 
     # color
     for k, commodity in enumerate(consumed.columns):
@@ -190,7 +191,8 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
 
     # line plot for created commodities (divided by dt for power)
     for label, series in created.items():
-        ax1.plot(hoursteps[1:], series.values / dt[0], label=label, linewidth=0.15)
+        commodity_color = to_color(label)
+        ax1.plot(hoursteps[1:], series.values / dt[0], label=label, linewidth=0.15, color=commodity_color)
 
     for k, commodity in enumerate(created.columns):
         commodity_color = to_color(commodity)
@@ -204,9 +206,27 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
     ax1.set_title('Line Plot of {} in {}, {}'.format(com, ', '.join(sit), stf))
     ax1.set_ylabel('{} ({})'.format(power_name, power_unit))
 
+    # PLOT DEMAND
+    # line plot for demand (unshifted / shifted) commodities (divided by dt for power)
+    # only ax0 requires labeling, since it is used for the legend
+
+    if plot_dsm:
+        # line plot for demand (in case of DSM mode: shifted) commodities (divided by dt for power)
+        ax0.plot(hoursteps[1:], demand.values / dt[0], linewidth=1.0,
+                 color=to_color('Shifted'), label='Demand Shifted')
+        ax1.plot(hoursteps[1:], demand.values / dt[0], linewidth=1.0,
+                 color=to_color('Shifted'))
+        ax0.plot(hoursteps, original.values / dt[0], linewidth=0.8, color=to_color('Unshifted'),
+                 label='Demand')
+        ax1.plot(hoursteps, original.values / dt[0], linewidth=0.8, color=to_color('Unshifted'))
+    else:
+        ax0.plot(hoursteps, original.values / dt[0], linewidth=1.5, color='darkred',
+                 label='Demand')
+        ax1.plot(hoursteps, original.values / dt[0], linewidth=1.5, color='darkred')
+
     # legend
     handles, labels = ax0.get_legend_handles_labels()
-    handles, labels = ax1.get_legend_handles_labels()
+
 
     # add "only" consumed commodities to the legend
     for item in consumed.columns[::-1]:
@@ -242,21 +262,9 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
                     bbox_to_anchor=(1, 1))
     plt.setp(lg_1.get_patches(), edgecolor=to_color('Decoration'),
              linewidth=0.15)
+
     plt.setp(ax1.get_xticklabels(), visible=False)
 
-    # PLOT DEMAND
-    # line plot for demand (unshifted) commodities (divided by dt for power)
-    ax0.plot(hoursteps, original.values / dt[0], linewidth=0.8,
-             color=to_color('Unshifted'))
-    ax1.plot(hoursteps, original.values / dt[0], linewidth=0.8,
-             color=to_color('Unshifted'))
-
-    # line plot for demand (in case of DSM mode: shifted) commodities
-    # (divided by dt for power)
-    ax0.plot(hoursteps[1:], demand.values / dt[0], linewidth=1.0,
-             color=to_color('Shifted'))
-    ax1.plot(hoursteps[1:], demand.values / dt[0], linewidth=1.0,
-             color=to_color('Shifted'))
 
     # PLOT STORAGE
     ax2 = plt.subplot(gs[2], sharex=ax0)

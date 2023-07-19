@@ -3,6 +3,7 @@ from .MILP_offset_slope import MILP_calc_offset_slope
 from .MILP_offset_slope import MILP_pro_p_offset
 from .MILP_min_operation_time import MILP_min_operation_time
 from .MILP_calculate_startup_input_output import MILP_calculate_startup_input_output
+from .MILP_max_gradient import MILP_max_gradient
 from .MILP_calculate_startup_output_10eq import MILP_calculate_startup_output
 import pyomo.core as pyomo
 import pandas as pd
@@ -66,17 +67,18 @@ def MILP_partload(m):
             'slope = (R -  min_fraction * r) / (1 - min_fraction); offset = R - slope')
 
     m = MILP_calculate_startup_input_output(m)
+    # m = MILP_max_gradient(m)
     # m.def_test_rule = pyomo.Constraint(
     #     m.tm,
     #     (m.pro_partial_output_tuples -
     #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
     #     rule=def_test_rule,
-    #     doc='less power during start-up rule 6')
+    #     doc='test rule')
     return m
 
 def def_test_rule(m, tm, stf, sit, pro, coo):
-    # e_pro_out_no_start(t) = offset + slope * tau_pro(t)
-    return m.pro_mode_run[tm, stf, sit, pro] == 0
+    # test rule
+    return m.pro_mode_run[120, stf, sit, pro] == 1
 
 def res_throughput_by_capacity_min_MILP_rule(m, tm, stf, sit, pro):
     # run[0/1] * cap_pro * min - fraction <= tau_pro

@@ -1,7 +1,7 @@
 import pyomo.core as pyomo
 
 
-def MILP_calculate_startup_input_output(m):
+def MILP_startup_duration(m):
     ##### INPUT #####
     # run[1/0](t) does not have to be accounted for here since it is already implemented in e_pro_in_no_start
     # e_pro_in(t) = e_pro_in_calc_help(t) + startup[1/0](t) * startup_cost
@@ -11,6 +11,7 @@ def MILP_calculate_startup_input_output(m):
     # e_pro_in_calc_help(t)  - e_pro_in_no_start_up(t) >= - startup[1/0](t) * e_in_max
     # with
     # e_pro_in_no_start_up(t) = offset(t) + slope * tau_pro(t)
+    # R is not required in the e_in_max, it does not make a difference
 
     m.del_component(m.def_partial_process_input)
     m.del_component(m.def_partial_process_input_index)
@@ -148,7 +149,7 @@ def def_partial_process_output_MILP_no_start_rule(m, tm, stf, sit, pro, coo):
 
 
 def def_partial_process_output_MILP_rule_A(m, tm, stf, sit, pro, coo):
-    # Rule A: e_pro_out(t) - e_out_start(t) <= (1 - startup[1/0](t)) * e_out_max
+    # Rule A: e_pro_out(t) - e_out_no_start(t) <= (1 - startup[1/0](t)) * e_out_max
     return m.e_pro_out[tm, stf, sit, pro, coo] - m.e_pro_out_no_start_up[tm, stf, sit, pro, coo] * \
            ((m.dt - m.process_dict['start-up-duration'][(stf, sit, pro)]) / m.dt) \
            <= (1 - m.pro_mode_startup[tm, stf, sit, pro]) * m.process_dict['cap-up'][(stf, sit, pro)] * m.dt

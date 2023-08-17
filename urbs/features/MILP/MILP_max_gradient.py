@@ -6,6 +6,26 @@ def MILP_max_gradient(m):
         m.tm, m.pro_partial_tuples,
         within=pyomo.Boolean,
         doc='Boolean: True if process is turning off')
+    # Logic table for switch off:
+    # run[t] X run[t-1] X          X  rule1  X  rule2  X  rule3  X sum_rules
+    #   0    X    0     X turnoff X   >=0   X   <=1   X  <=0    X    =0
+    #   0    X    1     X turnoff X   >=1   X   <=1   X  <=1    X    =1
+    #   1    X    0     X turnoff X   >=-1  X   <=0   X  <=0    X    =0
+    #   1    X    1     X turnoff X   >=0   X   <=0   X  <=1    X    =0
+    m.pro_mode_turnoff1 = pyomo.Constraint(
+        m.tm, m.pro_partial_tuples,
+        rule=pro_mode_turnoff_rule1,
+        doc='turnoff >= run[t-1] - run[t]')
+
+    m.pro_mode_turnoff2 = pyomo.Constraint(
+        m.tm, m.pro_partial_tuples,
+        rule=pro_mode_turnoff_rule2,
+        doc='turnoff <= 1 - run[t]')
+
+    m.pro_mode_turnoff3 = pyomo.Constraint(
+        m.tm, m.pro_partial_tuples,
+        rule=pro_mode_turnoff_rule3,
+        doc='turnoff <= run [t-1]')
     m.del_component(m.res_process_maxgrad_lower)
     m.del_component(m.res_process_maxgrad_lower_index)
     m.del_component(m.res_process_maxgrad_upper)
@@ -33,11 +53,22 @@ def MILP_max_gradient(m):
     # tau_pro(t) - (tau_pro(t-1) - cap_pro * max_grad * dt) >= - turnoff[1/0](t) * cap_pro * dt
     return m
 
+def pro_mode_turnoff_rule1(m, tm, stf, sit, pro):
+    # turnoff >= run[t-1] - run[t]
+    return m.pro_mode_turnoff[tm, stf, sit, pro] >= \
+           m.pro_mode_run[tm - 1, stf, sit, pro] - m.pro_mode_run[tm, stf, sit, pro]
 
-def def_pro_mode_turnoff_rule(m, tm, stf, sit, pro):
-    # turnoff == run[t-1] * (1 - run[t])
-    return m.pro_mode_startup[tm, stf, sit, pro] == \
-           m.pro_mode_run[tm - 1, stf, sit, pro] * (1 - m.pro_mode_run[tm, stf, sit, pro])
+
+def pro_mode_turnoff_rule2(m, tm, stf, sit, pro):
+    # turnoff <= 1 - run[t]
+    return m.pro_mode_turnoff[tm, stf, sit, pro] <= 1 - m.pro_mode_run[tm, stf, sit, pro]
+
+
+def pro_mode_turnoff_rule3(m, tm, stf, sit, pro):
+    # turnoff <= run[t-1]
+    return m.pro_mode_startup[tm, stf, sit, pro] <= m.pro_mode_run[tm - 1, stf, sit, pro]
+
+
 
 
 def res_process_maxgrad_start_up_rule(m, tm, stf, sit, pro):

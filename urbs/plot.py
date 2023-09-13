@@ -98,7 +98,7 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
         # wrap single site in 1-element list for consistent behaviour
         sit = [sit]
 
-    (created, consumed, stored, imported, exported,
+    (created, consumed, stored, charged, imported, exported,
      dsm, voltage_angle) = get_timeseries(prob, stf, com, sit, timesteps)
 
     # move retrieved/stored storage timeseries to created/consumed and
@@ -108,8 +108,12 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
     created.rename(columns={'Retrieved': 'Storage'}, inplace=True)
     consumed.rename(columns={'Stored': 'Storage'}, inplace=True)
 
+    consumed = consumed.join(charged['Charged'])
+    consumed.rename(columns={'Charged': 'BEV'}, inplace=True)
+
     # only keep storage content in storage timeseries
     stored = stored['Level']
+    charged = charged['SOC']
 
     # add imported/exported timeseries
     created = created.join(imported)

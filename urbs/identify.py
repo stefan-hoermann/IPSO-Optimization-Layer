@@ -8,7 +8,7 @@ def identify_mode(data):
         data: input data dictionary
 
     Features:
-        Intertemporal, Transmission, Storage, DSM, Buy Sell (Price), Time
+        Intertemporal, Transmission, BEV, Storage, DSM, Buy Sell (Price), Time
         Variable efficiency, Expansion (4 values for process, transmission,
         storage capacity and storage power expansion)
 
@@ -25,6 +25,7 @@ def identify_mode(data):
         'int': False,                   # intertemporal
         'tra': False,                   # transmission
         'sto': False,                   # storage
+        'bev': False,                   # bev
         'dsm': False,                   # demand site management
         'bsp': False,                   # buy sell price
         'tve': False,                   # time variable efficiency
@@ -48,6 +49,8 @@ def identify_mode(data):
         mode['sto'] = True
         mode['exp']['sto-c'] = True
         mode['exp']['sto-p'] = True
+    if not data['bev'].empty:
+        mode['bev'] = True
     if not data['dsm'].empty:
         mode['dsm'] = True
     if not data['buy_sell_price'].empty:

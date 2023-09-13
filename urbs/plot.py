@@ -59,7 +59,7 @@ def sort_plot_elements(elements):
 def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
          power_name='Power', energy_name='Energy',
          power_unit='MW', energy_unit='MWh', time_unit='h',
-         figure_size=(16, 12)):
+         figure_size=(20, 40)):
     """Plot a stacked timeseries of commodity balance and storage.
 
     Creates a stackplot of the energy balance of a given commodity, together
@@ -151,13 +151,15 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
     fig = plt.figure(figsize=figure_size)
     all_axes = []
     if plot_dsm:
-        gs = mpl.gridspec.GridSpec(3, 1, height_ratios=[3, 1, 1], hspace=0.05)
+        gs = mpl.gridspec.GridSpec(4, 1, height_ratios=[3, 1, 1, 1], hspace=0.15)
     else:
-        gs = mpl.gridspec.GridSpec(2, 1, height_ratios=[2, 1], hspace=0.05)
+        gs = mpl.gridspec.GridSpec(3, 1, height_ratios=[2, 2, 1], hspace=0.15)
 
-    # STACKPLOT
+    # PLOT
     ax0 = plt.subplot(gs[0])
+    ax1 = plt.subplot(gs[1])
     all_axes.append(ax0)
+    all_axes.append(ax1)
 
     # PLOT CONSUMED
 
@@ -166,6 +168,12 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
                          -consumed.values.T / dt[0],
                          labels=tuple(consumed.columns),
                          linewidth=0.15)
+
+    # line plot for consumed commodities (divided by dt for power)
+    for label, series in consumed.items():
+        commodity_color = to_color(label)  # get color for current commodity
+        ax1.plot(hoursteps[1:], -series.values / dt[0], label=label, linewidth=0.15, color=commodity_color)
+
     # color
     for k, commodity in enumerate(consumed.columns):
         commodity_color = to_color(commodity)
@@ -181,6 +189,11 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
                         labels=tuple(created.columns),
                         linewidth=0.15)
 
+    # line plot for created commodities (divided by dt for power)
+    for label, series in created.items():
+        commodity_color = to_color(label)
+        ax1.plot(hoursteps[1:], series.values / dt[0], label=label, linewidth=0.15, color=commodity_color)
+
     for k, commodity in enumerate(created.columns):
         commodity_color = to_color(commodity)
 
@@ -188,11 +201,32 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
         sp0[k].set_edgecolor(to_color('Decoration'))
 
     # label
-    ax0.set_title('Commodity balance of {} in {}'.format(com, ', '.join(sit)))
+    ax0.set_title('Stacked Plot of {} in {}, {}'.format(com,', '.join(sit), stf))
     ax0.set_ylabel('{} ({})'.format(power_name, power_unit))
+    ax1.set_title('Line Plot of {} in {}, {}'.format(com, ', '.join(sit), stf))
+    ax1.set_ylabel('{} ({})'.format(power_name, power_unit))
+
+    # PLOT DEMAND
+    # line plot for demand (unshifted / shifted) commodities (divided by dt for power)
+    # only ax0 requires labeling, since it is used for the legend
+
+    if plot_dsm:
+        # line plot for demand (in case of DSM mode: shifted) commodities (divided by dt for power)
+        ax0.plot(hoursteps[1:], demand.values / dt[0], linewidth=1.0,
+                 color=to_color('Shifted'), label='Demand Shifted')
+        ax1.plot(hoursteps[1:], demand.values / dt[0], linewidth=1.0,
+                 color=to_color('Shifted'))
+        ax0.plot(hoursteps, original.values / dt[0], linewidth=0.8, color=to_color('Unshifted'),
+                 label='Demand')
+        ax1.plot(hoursteps, original.values / dt[0], linewidth=0.8, color=to_color('Unshifted'))
+    else:
+        ax0.plot(hoursteps, original.values / dt[0], linewidth=1.5, color='darkred',
+                 label='Demand')
+        ax1.plot(hoursteps, original.values / dt[0], linewidth=1.5, color='darkred')
 
     # legend
     handles, labels = ax0.get_legend_handles_labels()
+
 
     # add "only" consumed commodities to the legend
     for item in consumed.columns[::-1]:
@@ -221,57 +255,69 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
              linewidth=0.15)
     plt.setp(ax0.get_xticklabels(), visible=False)
 
-    # PLOT DEMAND
-    # line plot for demand (unshifted) commodities (divided by dt for power)
-    ax0.plot(hoursteps, original.values / dt[0], linewidth=0.8,
-             color=to_color('Unshifted'))
+    lg_1 = ax1.legend(handles=handles[::-1],
+                    labels=labels[::-1],
+                    frameon=False,
+                    loc='upper left',
+                    bbox_to_anchor=(1, 1))
+    plt.setp(lg_1.get_patches(), edgecolor=to_color('Decoration'),
+             linewidth=0.15)
 
-    # line plot for demand (in case of DSM mode: shifted) commodities
-    # (divided by dt for power)
-    ax0.plot(hoursteps[1:], demand.values / dt[0], linewidth=1.0,
-             color=to_color('Shifted'))
+    plt.setp(ax1.get_xticklabels(), visible=False)
+
 
     # PLOT STORAGE
-    ax1 = plt.subplot(gs[1], sharex=ax0)
-    all_axes.append(ax1)
+    ax2 = plt.subplot(gs[2], sharex=ax0)
+    all_axes.append(ax2)
 
     # stack plot for stored commodities
     try:
-        sp1 = ax1.stackplot(hoursteps, stored.values, linewidth=0.15)
+        sp1 = ax2.stackplot(hoursteps, stored.values, linewidth=0.15)
     except BaseException:
         stored = pd.Series(0, index=hoursteps)
-        sp1 = ax1.stackplot(hoursteps, stored.values, linewidth=0.15)
+        sp1 = ax2.stackplot(hoursteps, stored.values, linewidth=0.15)
+
+    # line plot for stored commodities
+    try:
+        for series in stored:
+            ax2.plot(hoursteps, series, linewidth=0.15)
+    except BaseException:
+        stored = pd.Series(0, index=hoursteps)
+        ax2.plot(hoursteps, stored.values, linewidth=0.15)
+
     if plot_dsm:
         # hide xtick labels only if DSM plot follows
-        plt.setp(ax1.get_xticklabels(), visible=False)
+        plt.setp(ax2.get_xticklabels(), visible=False)
     else:
         # else add label for time axis
-        ax1.set_xlabel('Time in year ({})'.format(time_unit))
+        ax2.set_xlabel('Time in year ({})'.format(time_unit))
 
     # color & labels
     sp1[0].set_facecolor(to_color('Storage'))
     sp1[0].set_edgecolor(to_color('Decoration'))
-    ax1.set_ylabel('{} ({})'.format(energy_name, energy_unit))
+    ax2.set_ylabel('{} ({})'.format(energy_name, energy_unit))
+    ax2.set_title('Plot of {} Storage in {}, {}'.format(com, ', '.join(sit), stf))
+
 
     # try:
-    # ax1.set_ylim((0, 0.5 + csto.loc[sit, :, com]['C Total'].sum()))
+    # ax2.set_ylim((0, 0.5 + csto.loc[sit, :, com]['C Total'].sum()))
     # except KeyError:
     # pass
 
     # PLOT DEMAND SIDE MANAGEMENT
     if plot_dsm:
-        ax2 = plt.subplot(gs[2], sharex=ax0)
-        all_axes.append(ax2)
+        ax3 = plt.subplot(gs[3], sharex=ax0)
+        all_axes.append(ax3)
 
         # bar plot for DSM up-/downshift power (bar width depending on dt)
-        ax2.bar(hoursteps,
+        ax3.bar(hoursteps,
                 deltademand.values / dt[0], width=0.8 * dt[0],
                 color=to_color('Delta'),
                 edgecolor='none')
 
         # labels & y-limits
-        ax2.set_xlabel('Time in year ({})'.format(time_unit))
-        ax2.set_ylabel('{} ({})'.format(power_name, power_unit))
+        ax3.set_xlabel('Time in year ({})'.format(time_unit))
+        ax3.set_ylabel('{} ({})'.format(power_name, power_unit))
 
     # make xtick distance duration-dependent
     if len(timesteps_plot) > 26 * 168 / dt[0]:     # time horizon > half a year
@@ -305,18 +351,17 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
 
         # group 1,000,000 with commas, but only if maximum or minimum are
         # sufficiently large. Otherwise, keep default tick labels
-        ymin, ymax = ax.get_ylim()
-        if ymin < -90 or ymax > 90:
-            group_thousands = mpl.ticker.FuncFormatter(
-                lambda x, pos: '{:0,d}'.format(int(x)))
-            ax.yaxis.set_major_formatter(group_thousands)
-        else:
-            skip_lowest = mpl.ticker.FuncFormatter(
-                lambda y, pos: '' if pos == 0 else y)
-            ax.yaxis.set_major_formatter(skip_lowest)
+        # ymin, ymax = ax.get_ylim()
+        # if ymin < -90 or ymax > 90:
+        #     group_thousands = mpl.ticker.FuncFormatter(
+        #         lambda x, pos: '{:0,d}'.format(int(x)))
+        #     ax.yaxis.set_major_formatter(group_thousands)
+        # else:
+        #     skip_lowest = mpl.ticker.FuncFormatter(
+        #         lambda y, pos: '' if pos == 0 else y)
+        #     ax.yaxis.set_major_formatter(skip_lowest)
 
     return fig
-
 
 def result_figures(prob, figure_basename, timesteps, plot_title_prefix=None,
                    plot_tuples=None, plot_sites_name={},
@@ -379,8 +424,11 @@ def result_figures(prob, figure_basename, timesteps, plot_title_prefix=None,
             if not plot_title_prefix:
                 plot_title_prefix = os.path.basename(figure_basename)
 
-            new_figure_title = '{}: {} in {}, {}'.format(
-                plot_title_prefix, com, plot_sites_name[sit], stf)
+            # new_figure_title = '{}: {} in {}, {}'.format(
+            #     plot_title_prefix, com, plot_sites_name[sit], stf)
+            # ax0.set_title(new_figure_title)
+            new_figure_title = 'Stacked Plot of {} in {}, {}'.format(
+                com, plot_sites_name[sit], stf)
             ax0.set_title(new_figure_title)
 
             # save plot to files

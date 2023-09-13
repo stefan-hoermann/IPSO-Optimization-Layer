@@ -2,7 +2,10 @@ import pyomo.core as pyomo
 
 # to_do: Check, why the startup costs don't work in the MILP problem!
 
+
 def MILP_startupcosts(m):
+    # Calculates whether it is a start and the resulting startup costs.
+
     m.pro_mode_startup = pyomo.Var(
         m.tm, m.pro_partial_tuples,
         within=pyomo.Boolean,

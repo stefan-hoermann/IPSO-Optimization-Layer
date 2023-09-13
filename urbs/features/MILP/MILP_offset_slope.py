@@ -27,7 +27,7 @@ def MILP_calc_offset_slope(m):
     return m
 
 
-# calculates the offset: p_offset = offset_spec * cap(t) * run[0/1](t)
+# calculates the offset: p_offset = offset_spec * cap(t) * run[0/1](t) 
 # linearization:
 # 1. p_offset - (offset_spec*cap) <= (1-run) * cap-max * R -> p_offset <= (offset_spec*cap) if run=1
 # 2. p_offset - (offset_spec*cap) >= -(1-run) * cap-max * R -> p_offset >= (offset_spec*cap) if run=1
@@ -54,13 +54,13 @@ def MILP_pro_p_offset(m):
 
     m.pro_p_offset_in_ltzero_when_off = pyomo.Constraint(
         m.tm, m.pro_partial_input_tuples,
-        rule=pro_p_offset_in_ltzero_when_off_rule,
+        rule=pro_p_in_offset_ltzero_when_off_rule,
         doc='p_offset must be (lower) equal to zero when run=0'
             'p_offset <= run * cap_max * R')
 
     m.pro_p_offset_in_gtzero_when_off = pyomo.Constraint(
         m.tm, m.pro_partial_input_tuples,
-        rule=pro_p_offset_in_gtzero_when_off_rule,
+        rule=pro_p_in_offset_gtzero_when_off_rule,
         doc='p_offset must be (greater) equal to zero when run=0'
             'p_offset >= -run * cap_max * R')
 
@@ -84,13 +84,13 @@ def MILP_pro_p_offset(m):
 
     m.pro_p_offset_out_ltzero_when_off = pyomo.Constraint(
         m.tm, m.pro_partial_output_tuples,
-        rule=pro_p_offset_out_ltzero_when_off_rule,
+        rule=pro_p_out_offset_ltzero_when_off_rule,
         doc='p_offset must be (lower) equal to zero when run=0'
             'p_offset <= run * cap_max * R')
 
     m.pro_p_offset_out_gtzero_when_off = pyomo.Constraint(
         m.tm, m.pro_partial_output_tuples,
-        rule=pro_p_offset_out_gtzero_when_off_rule,
+        rule=pro_p_out_offset_gtzero_when_off_rule,
         doc='p_offset must be (greater) equal to zero when run=0'
             'p_offset >= run * cap_max * R')
     return m
@@ -110,12 +110,12 @@ def pro_p_in_offset_gt_rule(m, tm, stf, sit, pro, coin):
            -(1 - m.pro_mode_run[tm, stf, sit, pro]) * m.process_dict['cap-up'][(stf, sit, pro)] * \
            m.r_in_dict[(stf, pro, coin)]
 
-def pro_p_offset_in_ltzero_when_off_rule(m, tm, stf, sit, pro, coin):
+def pro_p_in_offset_ltzero_when_off_rule(m, tm, stf, sit, pro, coin):
     # p_offset <= run * cap_max * R
     return m.pro_p_in_offset[tm, stf, sit, pro, coin] <= \
            m.pro_mode_run[tm, stf, sit, pro] * m.process_dict['cap-up'][(stf, sit, pro)] * m.r_in_dict[(stf, pro, coin)]
 
-def pro_p_offset_in_gtzero_when_off_rule(m, tm, stf, sit, pro, coin):
+def pro_p_in_offset_gtzero_when_off_rule(m, tm, stf, sit, pro, coin):
     # p_offset >= -run * cap_max * R
     return m.pro_p_in_offset[tm, stf, sit, pro, coin] >= \
            -m.pro_mode_run[tm, stf, sit, pro] * m.process_dict['cap-up'][(stf, sit, pro)] * m.r_in_dict[(stf, pro, coin)]
@@ -135,12 +135,12 @@ def pro_p_out_offset_gt_rule(m, tm, stf, sit, pro, coo):
            -(1 - m.pro_mode_run[tm, stf, sit, pro]) * m.process_dict['cap-up'][(stf, sit, pro)] * \
            m.r_out_dict[(stf, pro, coo)]
 
-def pro_p_offset_out_ltzero_when_off_rule(m, tm, stf, sit, pro, coo):
+def pro_p_out_offset_ltzero_when_off_rule(m, tm, stf, sit, pro, coo):
     # p_offset <= run * cap_max * R
     return m.pro_p_out_offset[tm, stf, sit, pro, coo] <= \
            m.pro_mode_run[tm, stf, sit, pro] * m.process_dict['cap-up'][(stf, sit, pro)] * m.r_out_dict[(stf, pro, coo)]
 
-def pro_p_offset_out_gtzero_when_off_rule(m, tm, stf, sit, pro, coo):
+def pro_p_out_offset_gtzero_when_off_rule(m, tm, stf, sit, pro, coo):
     # p_offset >= run * cap_max * R
     return m.pro_p_out_offset[tm, stf, sit, pro, coo] >= \
            -m.pro_mode_run[tm, stf, sit, pro] * m.process_dict['cap-up'][(stf, sit, pro)] * m.r_out_dict[(stf, pro, coo)]

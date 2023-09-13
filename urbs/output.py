@@ -119,6 +119,15 @@ def get_timeseries(instance, stf, com, sites, timesteps=None):
     stock.name = 'Stock'
 
     # PROCESS
+    run = get_entity(instance, 'pro_mode_run')
+    start_up = get_entity(instance, 'pro_mode_startup')
+    pro_out_no_start_up = get_entity(instance, 'pro_out_no_start_up')
+    tau_pro = get_entity(instance, 'tau_pro')
+    pro_out_help_var = get_entity(instance, 'pro_out_help_var')
+    cap_pro = get_entity(instance, 'cap_pro')
+
+    # def_partial_process_output_MILP_3 = get_entity(instance, 'def_partial_process_output_MILP_3')
+
     created = get_entity(instance, 'e_pro_out')
     try:
         created = created.xs([stf, com], level=['stf', 'com']).loc[timesteps]

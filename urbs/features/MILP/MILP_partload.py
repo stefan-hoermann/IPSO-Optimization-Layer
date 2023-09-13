@@ -2,6 +2,9 @@ from .MILP_startupcosts import MILP_startupcosts
 from .MILP_offset_slope import MILP_calc_offset_slope
 from .MILP_offset_slope import MILP_pro_p_offset
 from .MILP_min_operation_time import MILP_min_operation_time
+from .MILP_startup_duration import MILP_startup_duration
+from .MILP_max_gradient import MILP_max_gradient
+from .MILP_calculate_startup_output_10eq import MILP_calculate_startup_output
 import pyomo.core as pyomo
 import pandas as pd
 
@@ -27,10 +30,13 @@ def MILP_partload(m):
 
     # Calculate offset and slope for partload behaviour
     m = MILP_calc_offset_slope(m)
-
     # MILP constraints for offset
     m = MILP_pro_p_offset(m)
+
+    # Min_Operation_Time constraint
     m = MILP_min_operation_time(m)
+
+
     m.del_component(m.def_partial_process_input)
     m.del_component(m.def_partial_process_input_index)
     m.del_component(m.def_partial_process_output)
@@ -60,20 +66,31 @@ def MILP_partload(m):
         rule=def_pro_partial_timevar_output_MILP_rule,
         doc='e_pro_out = (offset + slope * tau_pro) * eff_factor'
             'slope = (R -  min_fraction * r) / (1 - min_fraction); offset = R - slope')
+
+    m = MILP_startup_duration(m)
+    m = MILP_max_gradient(m)
+    # m.def_test_rule = pyomo.Constraint(
+    #     m.tm,
+    #     (m.pro_partial_output_tuples -
+    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+    #     rule=def_test_rule,
+    #     doc='test rule')
     return m
 
-
+def def_test_rule(m, tm, stf, sit, pro, coo):
+    # test rule
+    return m.pro_mode_run[120, stf, sit, pro] == 1
 
 def res_throughput_by_capacity_min_MILP_rule(m, tm, stf, sit, pro):
-    # run[0/1] * cap_pro * min - fraction <= tau_pro
-    # linearization: tau_pro - cap_pro * min-fraction >= - (1 - run[0/1]) * process.cap-up
+    # run[0/1] * cap_pro * min-fraction * dt <= tau_pro
+    # linearization: tau_pro - cap_pro * min-fraction >= - (1 - run[0/1]) * process.cap-up * dt
     return (m.tau_pro[tm, stf, sit, pro] -
             m.cap_pro[stf, sit, pro] * m.process_dict['min-fraction'][(stf, sit, pro)] * m.dt >=
             - (1 - m.pro_mode_run[tm, stf, sit, pro]) * m.process_dict['cap-up'][(stf, sit, pro)] * m.dt)
 
 
 def res_throughput_by_capacity_max_MILP_rule(m, tm, stf, sit, pro):
-    # tau_pro <= run[0/1] * cap-up
+    # tau_pro <= run[0/1] * cap-up * dt
     return (m.tau_pro[tm, stf, sit, pro] <=
             m.pro_mode_run[tm, stf, sit, pro] * m.process_dict['cap-up'][(stf, sit, pro)] * m.dt)
 
@@ -84,7 +101,7 @@ def def_partial_process_input_MILP_rule(m, tm, stf, sit, pro, coin):
     return m.e_pro_in[tm, stf, sit, pro, coin] == \
            m.dt * m.pro_p_in_offset[tm, stf, sit, pro, coin] + \
            m.pro_p_in_slope[(stf, sit, pro, coin)] * m.tau_pro[tm, stf, sit, pro] \
-           + m.dt * m.pro_p_startup[tm, stf, sit, pro,coin]
+           + m.dt * m.pro_p_startup[tm, stf, sit, pro, coin]
 
 
 def def_partial_process_output_MILP_rule(m, tm, stf, sit, pro, coo):

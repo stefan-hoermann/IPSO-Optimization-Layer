@@ -4,6 +4,13 @@ import os
 import numpy as np
 
 
+# Variable Load. Valo allowes the modelling of different kinds of variable loads such as E-Cars, E-Forklifts and any
+# kind of machine. As of now, there are several limitations require future implementations.
+# Limitations:
+# - Efficiency constant
+# - Only one commodity
+# - Only two production goals (pg)
+# - No min operation time
 def add_valo(m):
     indexlist = set()
     for key in m.valo_dict["capacity"]:
@@ -26,7 +33,7 @@ def add_valo(m):
     m.valo_mode_run = pyomo.Var(
         m.t, m.valo_tuples,
         within=pyomo.Boolean,
-        doc='Boolean: True if valo is actively charging')
+        doc='Boolean: True if valo is actively operating')
 
     m.e_valo_in = pyomo.Var(
         m.tm, m.valo_tuples,
@@ -82,6 +89,7 @@ def def_valo_init_state_rule(m, t, stf, sit, valo, com):
     return m.e_valo_con[0, stf, sit, valo, com] == m.valo_dict['start-soc'][(stf, sit, valo, com)] * \
            m.valo_dict['capacity'][(stf, sit, valo, com)]
 
+
 # SOC(t) < SOCmax
 def res_valo_state_by_capacity_rule(m, t, stf, sit, valo, com):
     return m.e_valo_con[t, stf, sit, valo, com] <= m.valo_dict['capacity'][(stf, sit, valo, com)]
@@ -92,21 +100,22 @@ def res_valo_input_by_power_rule_max(m, t, stf, sit, valo, com):
     return m.e_valo_in[t, stf, sit, valo, com] <= m.valo_dict['max-p'][(stf, sit, valo, com)] *\
            m.valo_availability_data[valo][t] * m.valo_mode_run[t, stf, sit, valo, com]
 
+
 # e_in(t) >= min_power * availability * run(t)
 def res_valo_input_by_power_rule_min(m, t, stf, sit, valo, com):
     return m.e_valo_in[t, stf, sit, valo, com] <= m.valo_dict['max-p'][(stf, sit, valo, com)] *\
            m.valo_availability_data[valo][t]
 
-# Reach first charging goal at given time
+# Reach first production goal at given time
 def res_charge_goal_1_rule(m, t, stf, sit, valo, com):
-    return m.e_valo_con[m.valo_dict['t-first-cg'][(stf, sit, valo, com)], stf, sit, valo, com] >= \
-           m.valo_dict['first-cg'][(stf, sit, valo, com)] * m.valo_dict['capacity'][(stf, sit, valo, com)]
+    return m.e_valo_con[m.valo_dict['t-first-pg'][(stf, sit, valo, com)], stf, sit, valo, com] >= \
+           m.valo_dict['first-pg'][(stf, sit, valo, com)] * m.valo_dict['capacity'][(stf, sit, valo, com)]
 
 
-# Reach second charging goal at given time
+# Reach second production goal at given time
 def res_charge_goal_2_rule(m, t, stf, sit, valo, com):
-    return m.e_valo_con[m.valo_dict['t-second-cg'][(stf, sit, valo, com)], stf, sit, valo, com] >= \
-           m.valo_dict['second-cg'][(stf, sit, valo, com)] * m.valo_dict['capacity'][(stf, sit, valo, com)]
+    return m.e_valo_con[m.valo_dict['t-second-pg'][(stf, sit, valo, com)], stf, sit, valo, com] >= \
+           m.valo_dict['second-pg'][(stf, sit, valo, com)] * m.valo_dict['capacity'][(stf, sit, valo, com)]
 
 
 def valo_balance(m, tm, stf, sit, com):
@@ -122,7 +131,7 @@ def valo_balance(m, tm, stf, sit, com):
 
 # Reads in the availability data
 def read_in_valo_availability_data(m):
-    input_dir = "Input valo"
+    input_dir = "Input Variable Load"
     input_files = os.listdir(input_dir)
     if len(input_files) > 1:
         raise ValueError("There should only be one file in the Input MILP folder. ")

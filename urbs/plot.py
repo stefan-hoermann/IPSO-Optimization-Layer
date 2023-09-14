@@ -109,7 +109,7 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
     consumed.rename(columns={'Stored': 'Storage'}, inplace=True)
 
     consumed = consumed.join(charged['Charged'])
-    consumed.rename(columns={'Charged': 'valo'}, inplace=True)
+    consumed.rename(columns={'Charged': 'Variable Load'}, inplace=True)
 
     # only keep storage content in storage timeseries
     stored = stored['Level']

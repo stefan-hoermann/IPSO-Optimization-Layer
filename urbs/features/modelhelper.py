@@ -1,6 +1,6 @@
 from .transmission import transmission_balance
 from .storage import storage_balance
-from .valo import valo_balance
+from .VariableLoad import valo_balance
 
 
 def invcost_factor(dep_prd, interest, discount=None, year_built=None,

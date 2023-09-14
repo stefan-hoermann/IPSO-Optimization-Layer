@@ -124,9 +124,9 @@ def read_input(input_files, year):
             else:
                 storage = pd.DataFrame()
             sto.append(storage)
-            if 'valo' in xls.sheet_names:
+            if 'Variable Load' in xls.sheet_names:
                 variableload = (
-                    xls.parse('valo')
+                    xls.parse('Variable Load')
                     .set_index(['Site', 'valo', 'Commodity']))
                 variableload = pd.concat([variableload], keys=[support_timeframe],
                                     names=['support_timeframe'])

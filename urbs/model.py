@@ -2,7 +2,7 @@ import math
 import pyomo.core as pyomo
 from datetime import datetime
 from .features import *
-from .features.valo import add_valo
+from .features.VariableLoad import add_valo
 from .input import *
 
 

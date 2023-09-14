@@ -226,10 +226,10 @@ def get_timeseries(instance, stf, com, sites, timesteps=None):
         stored = pd.DataFrame(0, index=timesteps,
                               columns=['Level', 'Stored', 'Retrieved'])
 
-    # BEV
-    # group bev energies by commodity
+    # valo
+    # group valo energies by commodity
     # select all entries with desired commodity co
-    charged = get_entities(instance, ['e_bev_con', 'e_bev_in'])
+    charged = get_entities(instance, ['e_valo_con', 'e_valo_in'])
     try:
         charged = charged.loc[timesteps].xs([stf, com], level=['stf', 'com'])
         charged = charged.groupby(level=['t', 'sit']).sum()

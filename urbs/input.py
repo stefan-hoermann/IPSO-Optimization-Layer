@@ -35,7 +35,7 @@ def read_input(input_files, year):
     pro_com = []
     tra = []
     sto = []
-    bev = []
+    valo = []
     dem = []
     sup = []
     bsp = []
@@ -103,7 +103,7 @@ def read_input(input_files, year):
             sup.append(supim)
 
             # collect data for the additional features
-            # Transmission, Storage, BEV, DSM
+            # Transmission, Storage, valo, DSM
             if 'Transmission' in xls.sheet_names:
                 transmission = (
                     xls.parse('Transmission')
@@ -124,15 +124,15 @@ def read_input(input_files, year):
             else:
                 storage = pd.DataFrame()
             sto.append(storage)
-            if 'BEV' in xls.sheet_names:
-                bevehicle = (
-                    xls.parse('BEV')
-                    .set_index(['Site', 'bev', 'Commodity']))
-                bevehicle = pd.concat([bevehicle], keys=[support_timeframe],
+            if 'valo' in xls.sheet_names:
+                variableload = (
+                    xls.parse('valo')
+                    .set_index(['Site', 'valo', 'Commodity']))
+                variableload = pd.concat([variableload], keys=[support_timeframe],
                                     names=['support_timeframe'])
             else:
-                bevehicle = pd.DataFrame()
-            bev.append(bevehicle)
+                variableload = pd.DataFrame()
+            valo.append(variableload)
             if 'DSM' in xls.sheet_names:
                 dsm = xls.parse('DSM').set_index(['Site', 'Commodity'])
                 dsm = pd.concat([dsm], keys=[support_timeframe],
@@ -170,7 +170,7 @@ def read_input(input_files, year):
         supim = pd.concat(sup, sort=False)
         transmission = pd.concat(tra, sort=False)
         storage = pd.concat(sto, sort=False)
-        bevehicle = pd.concat(bev, sort=False)
+        variableload = pd.concat(valo, sort=False)
         dsm = pd.concat(ds, sort=False)
         buy_sell_price = pd.concat(bsp, sort=False)
         eff_factor = pd.concat(ef, sort=False)
@@ -189,7 +189,7 @@ def read_input(input_files, year):
         'supim': supim,
         'transmission': transmission,
         'storage': storage,
-        'bev': bevehicle,
+        'valo': variableload,
         'dsm': dsm,
         'buy_sell_price': buy_sell_price.dropna(axis=1, how='all'),
         'eff_factor': eff_factor.dropna(axis=1, how='all')
@@ -258,8 +258,8 @@ def pyomo_model_prep(data, timesteps):
         sto_const_cap_c = storage[storage['inst-cap-c'] == storage['cap-up-c']]
         sto_const_cap_p = storage[storage['inst-cap-p'] == storage['cap-up-p']]
 
-    if m.mode['bev']:
-        bevehicle = data["bev"].dropna(axis=0, how='all')
+    if m.mode['valo']:
+        variableload = data["valo"].dropna(axis=0, how='all')
 
     if m.mode['dsm']:
         m.dsm_dict = data["dsm"].dropna(axis=0, how='all').to_dict()
@@ -291,8 +291,8 @@ def pyomo_model_prep(data, timesteps):
     if m.mode['sto']:
         storage['support_timeframe'] = (storage.index.
                                         get_level_values('support_timeframe'))
-    if m.mode['bev']:
-        bevehicle['support_timeframe'] = (bevehicle.index.
+    if m.mode['valo']:
+        variableload['support_timeframe'] = (variableload.index.
                                         get_level_values('support_timeframe'))
     # installed units for intertemporal planning
     if m.mode['int']:
@@ -304,7 +304,7 @@ def pyomo_model_prep(data, timesteps):
         if m.mode['sto']:
             m.inst_sto = storage['inst-cap-p']
             m.inst_sto = m.inst_sto[m.inst_sto > 0]
-        # bev ??
+        # valo ??
     # process input/output ratios
     m.r_in_dict = (data['process_commodity'].xs('In', level='Direction')
                    ['ratio'].to_dict())
@@ -563,8 +563,8 @@ def pyomo_model_prep(data, timesteps):
     if m.mode['sto']:
         m.storage_dict = storage.to_dict()
 
-    if m.mode['bev']:
-        m.bev_dict = bevehicle.to_dict()
+    if m.mode['valo']:
+        m.valo_dict = variableload.to_dict()
 
     # update m.mode['exp'] and write dictionaries with constant capacities
     m.mode['exp']['pro'] = identify_expansion(pro_const_cap['inst-cap'],

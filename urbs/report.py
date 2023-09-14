@@ -66,7 +66,7 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
                     [created, consumed, stored, charged, imported, exported, overprod,
                      dsm, voltage_angle],
                     axis=1,
-                    keys=['Created', 'Consumed', 'Storage', 'BEV', 'Import from',
+                    keys=['Created', 'Consumed', 'Storage', 'valo', 'Import from',
                           'Export to', 'Balance', 'DSM', 'Voltage Angle'])
                 help_ts[(stf, lv, com)] = tableau.copy()
 
@@ -76,7 +76,7 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
                                        imported.sum(), exported.sum(),
                                        overprod.sum(), dsm.sum()],
                                       axis=0,
-                                      keys=['Created', 'Consumed', 'Storage', 'BEV',
+                                      keys=['Created', 'Consumed', 'Storage', 'valo',
                                             'Import', 'Export', 'Balance',
                                             'DSM'])
                 try:
@@ -95,7 +95,7 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
                               imported.sum(), exported.sum(), overprod.sum(),
                               dsm.sum()],
                              axis=0,
-                             keys=['Created', 'Consumed', 'Storage', 'BEV', 'Import',
+                             keys=['Created', 'Consumed', 'Storage', 'valo', 'Import',
                                    'Export', 'Balance', 'DSM'])
             energies.append(sums.to_frame("{}.{}.{}".format(stf, sit, com)))
 

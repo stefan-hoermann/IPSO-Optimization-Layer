@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import numpy as np
 
+
 def add_bev(m):
     indexlist = set()
     for key in m.bev_dict["capacity"]:
@@ -22,6 +23,11 @@ def add_bev(m):
 
 
     # Variables
+    m.bev_mode_run = pyomo.Var(
+        m.t, m.bev_tuples,
+        within=pyomo.Boolean,
+        doc='Boolean: True if bev is actively charging')
+
     m.e_bev_in = pyomo.Var(
         m.tm, m.bev_tuples,
         within=pyomo.NonNegativeReals,
@@ -32,10 +38,6 @@ def add_bev(m):
         within=pyomo.NonNegativeReals,
         doc='Energy content of bev (MWh) in timestep')
 
-    m.bev_mode_run = pyomo.Var(
-        m.t, m.bev_tuples,
-        within=pyomo.Boolean,
-        doc='Boolean: True if bev is charging')
 
     # Restrictions
     m.def_bev_state = pyomo.Constraint(
@@ -50,10 +52,14 @@ def add_bev(m):
         m.t, m.bev_tuples,
         rule=res_bev_state_by_capacity_rule,
         doc='storage content <= storage capacity')
-    m.res_bev_input_by_power = pyomo.Constraint(
+    m.res_bev_input_by_power_max = pyomo.Constraint(
         m.tm, m.bev_tuples,
-        rule=res_bev_input_by_power_rule,
-        doc='bev input <= bev power')
+        rule=res_bev_input_by_power_rule_max,
+        doc='e_in(t) <= max_power * availability * run(t)')
+    m.res_bev_input_by_power_min = pyomo.Constraint(
+        m.tm, m.bev_tuples,
+        rule=res_bev_input_by_power_rule_min,
+        doc='e_in(t) >= min_power * availability * run(t)')
     m.res_charge_goal_1 = pyomo.Constraint(
         m.tm, m.bev_tuples,
         rule=res_charge_goal_1_rule,
@@ -63,30 +69,33 @@ def add_bev(m):
         rule=res_charge_goal_2_rule,
         doc='reach SOC2 xy at time t2')
 
-
-
     return m
 
 
-# SOC[t] = SOC[t-1] + e_in
+# SOC[t] = SOC[t-1] + e_in * eff
 def def_bev_state_rule(m, t, stf, sit, bev, com):
-    return m.e_bev_con[t, stf, sit, bev, com] == m.e_bev_con[t-1, stf, sit, bev, com] + m.e_bev_in[t, stf, sit, bev, com]
+    return m.e_bev_con[t, stf, sit, bev, com] == m.e_bev_con[t-1, stf, sit, bev, com] +\
+           m.e_bev_in[t, stf, sit, bev, com] * m.bev_dict['eff'][(stf, sit, bev, com)]
 
-
+# SOC[0] = start SOC
 def def_bev_init_state_rule(m, t, stf, sit, bev, com):
     return m.e_bev_con[0, stf, sit, bev, com] == m.bev_dict['start-soc'][(stf, sit, bev, com)] * \
            m.bev_dict['capacity'][(stf, sit, bev, com)]
 
-
+# SOC(t) < SOCmax
 def res_bev_state_by_capacity_rule(m, t, stf, sit, bev, com):
     return m.e_bev_con[t, stf, sit, bev, com] <= m.bev_dict['capacity'][(stf, sit, bev, com)]
 
 
-# bev input <= bev power
-def res_bev_input_by_power_rule(m, t, stf, sit, bev, com):
+# e_in(t) <= max_power * availability * run(t)
+def res_bev_input_by_power_rule_max(m, t, stf, sit, bev, com):
+    return m.e_bev_in[t, stf, sit, bev, com] <= m.bev_dict['max-p'][(stf, sit, bev, com)] *\
+           m.bev_availability_data[bev][t] * m.bev_mode_run[t, stf, sit, bev, com]
+
+# e_in(t) >= min_power * availability * run(t)
+def res_bev_input_by_power_rule_min(m, t, stf, sit, bev, com):
     return m.e_bev_in[t, stf, sit, bev, com] <= m.bev_dict['max-p'][(stf, sit, bev, com)] *\
            m.bev_availability_data[bev][t]
-
 
 # Reach first charging goal at given time
 def res_charge_goal_1_rule(m, t, stf, sit, bev, com):
@@ -111,8 +120,9 @@ def bev_balance(m, tm, stf, sit, com):
                if site == sit and stframe == stf and commodity == com)
 
 
+# Reads in the availability data
 def read_in_bev_availability_data(m):
-    input_dir = r"C:\Users\steft\OneDrive\Desktop\Uni\Master\Masterarbeit\Python\urbs-MILP\Input BEV"
+    input_dir = "Input BEV"
     input_files = os.listdir(input_dir)
     if len(input_files) > 1:
         raise ValueError("There should only be one file in the Input MILP folder. ")

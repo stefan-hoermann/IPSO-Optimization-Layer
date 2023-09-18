@@ -135,6 +135,11 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
 
     # remove all columns from created which are all-zeros in both created and
     # consumed (except the last one, to prevent a completely empty frame)
+    # delete timeseries if they just occur due to data storage issues, 1.0e-15 should be a sufficiently small value.
+    # delete the next three lines to restore original functionality
+    for timeseries in [created, consumed]:
+        cols_to_drop = [col for col in timeseries.columns if timeseries[col].max() < 1.0e-15]
+        timeseries.drop(columns=cols_to_drop, inplace=True)
     for col in created.columns:
         if not created[col].any() and len(created.columns) > 1:
             if col not in consumed.columns or not consumed[col].any():
@@ -294,7 +299,7 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
         plt.setp(ax2.get_xticklabels(), visible=False)
     else:
         # else add label for time axis
-        ax2.set_xlabel('Time in year ({})'.format(time_unit))
+        ax2.set_xlabel('Time ({})'.format(time_unit))
 
     # color & labels
     sp1[0].set_facecolor(to_color('Storage'))
@@ -320,7 +325,7 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
                 edgecolor='none')
 
         # labels & y-limits
-        ax3.set_xlabel('Time in year ({})'.format(time_unit))
+        ax3.set_xlabel('Time ({})'.format(time_unit))
         ax3.set_ylabel('{} ({})'.format(power_name, power_unit))
 
     # make xtick distance duration-dependent

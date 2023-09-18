@@ -202,6 +202,55 @@ def read_input(input_files, year):
     return data
 
 
+# Reads in the input data for the valos. In the folder "Input Variable Load" there is a folder for each site
+# containing the files for the corresponding valos at that site.
+def read_in_valo_availability_data(m):
+    input_dir = "Input Variable Load"
+    site_dirs = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
+
+    m.valo_input_dict = {}
+
+    for site_dir in site_dirs:
+        site_input_dir = os.path.join(input_dir, site_dir)
+        input_files = os.listdir(site_input_dir)
+
+        for file_name in input_files:
+            file_path = os.path.join(site_input_dir, file_name)
+            valo_data = pd.read_csv(file_path, sep=";", index_col=0)
+            valo_data['Energy Start'] = valo_data['Energy Start'].replace(',', '.', regex=True)
+            valo_data['Energy Start'] = pd.to_numeric(valo_data['Energy Start'], errors='coerce')
+
+            valo_data['Energy Required'] = valo_data['Energy Required'].replace(',', '.', regex=True)
+            valo_data['Energy Required'] = pd.to_numeric(valo_data['Energy Required'], errors='coerce')
+
+            production_goals = {}
+
+            for timestep in valo_data.index:
+                energy_required = valo_data.loc[timestep, 'Energy Required']
+                if pd.notna(energy_required):
+                    production_goals[timestep] = energy_required
+
+            # Create new dataframes to seperate between fixed and variable load
+            m.valo_operate_immediate = valo_data[valo_data['State'] == 1].copy()
+            m.valo_operate_immediate = m.valo_operate_immediate.reindex(valo_data.index)
+            # TODO  add fixed load to demand. First calculate the amount of timesteps the variabel load can be operated
+            #  until full. Than look how many timesteps are avialable and choose the first ones to be charged.
+
+            operation_plan = valo_data[(valo_data['State'] == 2) | (valo_data['State'] == 3)].copy()
+            operation_plan = operation_plan.reindex(valo_data.index)
+            operation_plan['State'].replace({2: 1, 3: 1}, inplace=True)
+            operation_plan['State'].fillna(0, inplace=True)
+
+            file_name_without_extension = os.path.splitext(file_name)[0]
+            site_valo_key = (site_dir, file_name_without_extension)
+            m.valo_input_dict[site_valo_key] = {
+                'start_energy_contents': operation_plan['Energy Start'],
+                'production_goals': production_goals,
+                'State': operation_plan['State']
+            }
+    return m
+
+
 # preparing the pyomo model
 def pyomo_model_prep(data, timesteps):
     '''Performs calculations on the data frames in dictionary "data" for
@@ -565,6 +614,10 @@ def pyomo_model_prep(data, timesteps):
 
     if m.mode['valo']:
         m.valo_dict = variableload.to_dict()
+
+    # Read in the Variable Load operation plans which are stored in different folders
+    m = read_in_valo_availability_data(m)
+
 
     # update m.mode['exp'] and write dictionaries with constant capacities
     m.mode['exp']['pro'] = identify_expansion(pro_const_cap['inst-cap'],

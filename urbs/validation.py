@@ -85,6 +85,12 @@ def validate_input(data, dt):
         if not data['process'].loc[index]['pre-active-timesteps'] % 1 == 0:
             raise ValueError('Ensure that pre-active-timesteps is an integer.')
 
+    # Variable Loads are modelled as only having one commodity.
+    valo_names = data['valo'].index.get_level_values(2)
+    if valo_names.duplicated().any():
+        raise ValueError('Ensure that there are no Variabel Loads with the same name. Variable loads can only '
+                         'have one commodity.')
+
 
     if not data['transmission'].empty:
         for index in data['transmission'].index:

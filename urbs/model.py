@@ -26,7 +26,7 @@ def create_model(data, dt=1, timesteps=None, objective='cost',
     # Optional
     if not timesteps:
         timesteps = data['demand'].index.tolist()
-    m = pyomo_model_prep(data, timesteps)  # preparing pyomo model
+    m = pyomo_model_prep(data, timesteps, dt)  # preparing pyomo model
     m.name = 'urbs'
     m.created = datetime.now().strftime('%Y%m%dT%H%M')
     m._data = data

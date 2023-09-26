@@ -210,7 +210,7 @@ def read_in_valo_availability_data(m, timesteps, dt):
     input_dir = "Input Variable Load"
     site_dirs = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
 
-    m.valo_input_dict = {}
+    m.valo_operation_plan_dict = {}
     m.valo_operate_immediate = {}
 
     for site_dir in site_dirs:
@@ -219,20 +219,19 @@ def read_in_valo_availability_data(m, timesteps, dt):
 
         for file_name in input_files:
             file_path = os.path.join(site_input_dir, file_name)
-            valo_data = pd.read_csv(file_path, sep=";", index_col=0)
-            if len(valo_data) < timesteps.stop:
+            op_plan = pd.read_csv(file_path, sep=";", index_col=0)
+            if len(op_plan) < timesteps.stop:
                 raise ValueError(
                     "The input file '{}', '{}' is too short. It should have at least {} entries.".format(site_dir,
                                                                                                          file_name,
                                                                                                          timesteps))
             else:
-                valo_data = valo_data.iloc[:timesteps.stop]
+                op_plan = op_plan.iloc[:timesteps.stop]
 
-            valo_data['Energy Start'] = valo_data['Energy Start'].replace(',', '.', regex=True)
-            valo_data['Energy Start'] = pd.to_numeric(valo_data['Energy Start'], errors='coerce')
-
-            valo_data['Energy Required'] = valo_data['Energy Required'].replace(',', '.', regex=True)
-            valo_data['Energy Required'] = pd.to_numeric(valo_data['Energy Required'], errors='coerce')
+            op_plan['Energy Start'] = op_plan['Energy Start'].replace(',', '.', regex=True)
+            op_plan['Energy Start'] = pd.to_numeric(op_plan['Energy Start'], errors='coerce')
+            op_plan['Energy Required'] = op_plan['Energy Required'].replace(',', '.', regex=True)
+            op_plan['Energy Required'] = pd.to_numeric(op_plan['Energy Required'], errors='coerce')
 
             file_name = os.path.splitext(file_name)[0]
             site_name = os.path.splitext(site_dir)[0]
@@ -240,70 +239,242 @@ def read_in_valo_availability_data(m, timesteps, dt):
             valo_tuple = [tpl for tpl in keytuple if tpl[1] == site_name and tpl[2] == file_name]
             if len(valo_tuple) != 0:
                 valo = valo_tuple[0]
-                validate_valo_input_files(m, dt, site_name, file_name, valo_data, valo)
-            # else:
-            #     raise ValueError("There is no master data in the input file for the variable load '{}',"
-            #                      "'{}' ".format(site_name, file_name))
+                # TODO filename and sitename are not required, all information is already in valo
+                validate_valo_input_files(m, dt, site_name, file_name, op_plan, valo)
+                m = add_valo_fix_part_to_demand(m, dt, op_plan, valo)
+            else:
+                raise ValueError("There is no master data in the input file for the variable load '{}',"
+                                 "'{}' ".format(site_name, file_name))
 
-            production_goals = {}
-            for timestep in valo_data.index:
-                energy_required = valo_data.loc[timestep, 'Energy Required']
-                if pd.notna(energy_required):
-                    production_goals[timestep] = energy_required
-
-            # Create new dataframes to separate fixed and variable load
-            charge_immediate_df = valo_data[valo_data['State'] == 1].copy()
-            charge_immediate_df = charge_immediate_df.reindex(valo_data.index)
-            charge_immediate_df['State'].fillna(0, inplace=True)
-            operation_plan = valo_data[(valo_data['State'] == 2) | (valo_data['State'] == 3)].copy()
-            operation_plan = operation_plan.reindex(valo_data.index)
+            operation_plan = op_plan[(op_plan['State'] == 2) | (op_plan['State'] == 3)].copy()
+            operation_plan = operation_plan.reindex(op_plan.index)
             # Replace State 2 "Operate with goal" and State 3 "Operate with Sun" with 1 for binary calculation.
-            # State 2 and 3 are basically the same only that there is a OSC required given for State 2.
+            # State 2 and 3 are basically the same only that there is always a 'energy required' given for State 2.
             operation_plan['State'].replace({2: 1, 3: 1}, inplace=True)
             operation_plan['State'].fillna(0, inplace=True)
+            # Add column 'Reset Energy Content' to allow implementation of non-vehicles where 'Energy Start' values can
+            # be given during operation
+            operation_plan['Reset Energy Content'] = np.where(
+                (~operation_plan['Energy Start'].isna()) | (operation_plan['State'] == 0), 1, 0)
 
+            # Extract Production goals
+            production_goals = {}
+            for timestep in op_plan.index:
+                energy_required = op_plan.loc[timestep, 'Energy Required']
+                if pd.notna(energy_required):
+                    production_goals[timestep] = energy_required
             site_valo_key = (site_name, file_name)
 
-            m.valo_input_dict[site_valo_key] = {
+            m.valo_operation_plan_dict[site_valo_key] = {
                 'start_energy_contents': operation_plan['Energy Start'],
                 'production_goals': production_goals,
-                'State': operation_plan['State']
+                'State': operation_plan['State'],
+                'reset': operation_plan['Reset Energy Content']
             }
 
-            m.valo_operate_immediate[site_valo_key] = charge_immediate_df
+    return m
 
-    # Add the fixed part of the variable load to the demand:
+
+def validate_valo_input_files(m, dt, site_name, file_name, op_plan, valo):
+    # Ensure State only contains 0,1,2,3:
+    unique_states = op_plan['State'].unique()
+    allowed_values = {0, 1, 2, 3}
+    invalid_values = set(unique_states) - allowed_values
+    if invalid_values:
+        invalid_indices = op_plan[op_plan['State'].isin(invalid_values)].index.tolist()
+        raise ValueError("The 'State' column in '{}', '{}' contains the invalid"
+                         " values: {} at indicenoons {}".format(site_name, file_name, invalid_values, invalid_indices))
+
+    # Ensure -1 < energy content start < 1
+    valid_values = op_plan['Energy Start'][pd.notna(op_plan['Energy Start'])]
+    if not ((valid_values >= -1) & (valid_values <= 1)).all():
+        raise ValueError(
+            "All values in the 'Energy Start' column of '{}', '{}' should be between -1 and 1.".format(site_name, file_name))
+
+    # Ensure 0 < energy required < 1
+    valid_values = op_plan['Energy Required'][pd.notna(op_plan['Energy Required'])]
+    if not ((valid_values > 0) & (valid_values <= 1)).all():
+        raise ValueError(
+            "All values in the 'Energy Required' column of '{}', '{}' should be between 0 and 1.".format(site_name, file_name))
+
+    # Ensure that 'Energy Required' is bigger than the last 'Energy Start'
+    op_plan['Last_Energy_Start'] = op_plan['Energy Start'].ffill()
+    mask = (op_plan['Energy Required'] <= op_plan['Last_Energy_Start']) & ~op_plan['Energy Required'].isna()
+    if mask.any():
+        invalid_indices = op_plan[mask].index.tolist()
+        raise ValueError(
+            "In '{}', '{}', the 'Energy Required' value  at timesteps {} is not greater than the last given 'Energy"
+            " Start' value.".format(site_name, file_name, invalid_indices))
+    op_plan.drop(columns=['Last_Energy_Start'], inplace=True)
+
+    # Ensure that there is no 'Energy Start' and 'Energy Required' value given for the same timestep
+    invalid_indices = op_plan[op_plan['Energy Start'].notna() & op_plan['Energy Required'].notna()].index
+    if not invalid_indices.empty:
+        raise ValueError(
+            "In '{}', there should not be a 'Energy Start' and a 'Energy Required' value given for the same "
+            "timestep {}.".format(file_name, invalid_indices[0]))
+
+    # Ensure that there are only allowed transitions occuring
+    # Energy Start Calculations for (1,2) and (1,3) are conducted in the fix demand calculation
+    transitions = []
+    for idx in range(len(op_plan) - 1):
+        current_state = op_plan['State'].iloc[idx]
+        next_state = op_plan['State'].iloc[idx + 1]
+        transitions.append((idx, current_state, next_state))
+    for idx, first, second in transitions:
+        #### Energy Required ####
+        # Ensure that there is no 'Energy Required' value given for the first timestep
+        if idx == 0 or idx == 1:
+            if pd.notna(op_plan.loc[idx, 'Energy Required']):
+                raise ValueError(
+                    "There should not be any 'Energy Required' value given for timesteps '0' and '1' in '{}',"
+                    " '{}'".format(site_name, file_name))
+        # Ensure that there is a "Energy Required" value set where the state is 2 and the next state is not 2.
+        if first == 2 and second != 2:
+            if pd.isna(op_plan.loc[idx, 'Energy Required']):
+                raise ValueError(
+                    "In '{}', '{}' there is no 'Energy required' value set at index {} where there's a transition "
+                    "from state 2.".format(site_name, file_name, idx))
+        # Ensure that there is only a "Energy Required" value if the State is 2
+        if first != 2:
+            if pd.notna(op_plan.loc[idx, 'Energy Required']):
+                raise ValueError(
+                    "A 'Energy Required' value can only be set for state 2 'operate with goal' "
+                    "(Found in '{}', '{}' at index {}).".format(site_name, file_name, idx))
+        #### Energy Start ####
+        # Ensure that there is no 'Energy Start' value given for the first timestep
+        if idx == 0:
+            if pd.notna(op_plan.loc[idx, 'Energy Start']):
+                raise ValueError(
+                    "There should not be any 'Energy Start' value given for timestep '0' in '{}', '{}'".format(
+                        site_name, file_name))
+        ## NO_Vehicle ##
+        # If the valo is not a vehicle, there are less restrictions:
+        if m.valo_dict['is-vehicle'][valo] == 0:
+            # Ensure that there is no "Energy Start" Value given if there is a to-zero state transition.
+            if second == 0:
+                if pd.notna(op_plan.loc[idx+1, 'Energy Start']):
+                    raise ValueError(
+                        "In '{}', '{}' there should be no 'Energy Start' value set for the transition from state {} to"
+                        " state {} at index {}.".format(site_name, file_name, first, second, idx + 1))
+
+            # Ensure that there is a "Energy Start" Value given for required transitions. For non-vehicle variable loads
+            # a new "Energy Start" Value can always be given as long as the state is not 0. Exclusion for Vehicles is
+            # checked later.
+            elif (first, second) in [(0, 1), (0, 2), (0, 3), (2, 1), (3, 1), (3, 2)]:
+                if pd.isna(op_plan.loc[idx+1, 'Energy Start']):
+                    raise ValueError(
+                        "In '{}', '{}' there is no 'Energy Start' value set at index {} where there's a transition "
+                        "from state {} to state {}.".format(site_name, file_name, idx + 1, first, second))
+
+            # Ensure that if there is no "Energy Start" given for transition 2-3 that the "Energy Required" of 2 is
+            # taken.
+            elif (first, second) in [(2, 3)]:
+                if pd.isna(op_plan.loc[idx + 1, 'Energy Start']):
+                    op_plan.loc[idx + 1, 'Energy Start'] = op_plan.loc[idx, 'Energy Required']
+        ## Vehicle ##
+        # If the valo is a vehicle, there are aggravated restrictions:
+        elif m.valo_dict['is-vehicle'][valo] == 1:
+            # If the valo is a vehicle, transitions 2-1, 3-1, and 3-2 are logically impossible.
+            if (first, second) in [(2, 1), (3, 1), (3, 2)]:
+                raise ValueError("In '{}', '{}', there is an illegal state transition at index {} from state'{}' to "
+                                 "state '{}'. Since the valo is defined as a vehicle (set in the input file) these "
+                                 "transitions are illegal.".format(site_name, file_name, idx, first, second))
+            # Ensure that there is no "Energy Start" Value given for not allowed transitions.
+            if (first, second) not in [(0, 1), (0, 2), (0, 3)]:
+                if pd.notna(op_plan.loc[idx + 1, 'Energy Start']):
+                    raise ValueError(
+                        "In '{}', '{}' of type 'is-vehicle' = {} there should be no 'Energy Start' value set for the"
+                        " transition from state {} to state {} at index {}.".format(site_name, file_name,
+                                                                                    m.valo_dict['is-vehicle'][valo],
+                                                                                    first, second, idx + 1))
+            else:
+                if pd.isna(op_plan.loc[idx+1, 'Energy Start']):
+                    raise ValueError(
+                        "In '{}', '{}' there is no 'Energy Start' value set at index {} where there's a transition "
+                        "from state {} to state {}.".format(site_name, file_name, idx + 1, first, second))
+            if (first, second) in [(2, 3)]:
+                op_plan.loc[idx + 1, 'Energy Start'] = op_plan.loc[idx, 'Energy Required']
+        else:
+            raise ValueError(
+                "In the Input file 'is-vehicle' has to be 0 or 1 for  '{}', '{}'.".format(
+                    site_name, file_name))
+
+    # Ensure that the operation plan is physically feasible.
+    # 'max_content' column denotes the maximum physically possible energy content. For all active states the max
+    # content, if the valo operates at full power continuously, is calculated. After the calculation it is checked if
+    # any energy required value is set to be bigger than the maximum physically possible one.
+    op_plan['max_content'] = np.nan
+    op_plan.at[0, 'max_content'] = 0
+    for t in range(1, len(op_plan)):
+        if pd.isna(op_plan.at[t, 'Energy Start']):
+            active = 1 if op_plan.at[t, 'State'] > 0 else 0
+            op_plan.at[t, 'max_content'] = op_plan.at[t-1, 'max_content'] + \
+                                             ((m.valo_dict['max-p'][valo] * dt * m.valo_dict['eff'][valo]) /
+                                              m.valo_dict['capacity'][valo]) * active
+        elif op_plan.at[t, 'Energy Start'] > 0:
+            op_plan.at[t, 'max_content'] = op_plan.at[t, 'Energy Start'] + ((m.valo_dict['max-p'][valo] *
+                                                                                dt * m.valo_dict['eff'][valo]) /
+                                                                                m.valo_dict['capacity'][valo])
+        elif op_plan.at[t, 'Energy Start'] < 0:
+            if - op_plan.at[t, 'Energy Start'] > op_plan.at[t-1, 'max_content']:
+                raise ValueError(
+                    "For variable load '{}','{}', at timestep {} the given negative 'Energy Start' value is not "
+                    "physically feasible".format(site_name, file_name, t))
+            else:
+                op_plan.at[t, 'max_content'] = op_plan.at[t-1, 'max_content'] + op_plan.at[t, 'Energy Start']\
+                                                 + ((m.valo_dict['max-p'][valo] * dt * m.valo_dict['eff'][valo]) /
+                                                m.valo_dict['capacity'][valo])
+        if op_plan.at[t, 'max_content'] > 1:
+            op_plan.at[t, 'max_content'] = 1
+    for t in range(len(op_plan)):
+        if op_plan.at[t, 'Energy Required'] > op_plan.at[t, 'max_content']:
+            raise ValueError("Energy required at timestep {} for variable load '{}','{}'  is not physically "
+                                 "feasible.".format(t, site_name, file_name))
+
+
+def add_valo_fix_part_to_demand(m, dt, op_plan, valo):
+    # Add the fixed part of the variable load to the demand. It does not have to be distinguished between vehicle and
+    # non-vhicle since there was already an error raised for all not allowed states.
+    # The calculation of 'Energy Start' for the transitions (1-2) and (1-3) is conducted here as well.
     for key, subdict in m.demand_dict.items():
-        # demand_dict only contains the site and the commodity
-        select_site, select_comm = key
-        # Get the tuples from the input file to match the valos to the commodities & sites in the demand_dict
-        keytuple = tuple(m.valo_dict["capacity"].keys())
-        valo_site_commodity = [tpl for tpl in keytuple if tpl[1] == select_site and tpl[3] == select_comm]
-        for valo in valo_site_commodity:
-            operate_immediate = m.valo_operate_immediate[valo[1], valo[2]]
-            # Finding the indices where a change from 0 (not operatable) to 1 (operate immediately) occurs
-            change_indices = operate_immediate[operate_immediate['State'].diff() == 1].index.tolist()
-            # Finding the lengths of sequences of ones
-            operate_immediate['Group'] = (
-                        operate_immediate['State'] != operate_immediate['State'].shift()).cumsum()
-            one_sequences = operate_immediate[operate_immediate['State'] == 1].groupby('Group').size()
-            # Creating a list of tuples with index and length of each one sequence
-            one_sequences_tuples = [(index, length) for index, length in
-                                    zip(change_indices, one_sequences.values)]
-            operate_immediate.drop(columns=['Group'], inplace=True)
+        if valo[1] == key[0] and valo[3] == key[1]:
+            # To give the possibility to reset the energy content during a 'must-operate' period, an interrupted
+            # column that is true when there's a 'Energy Start' value and State is 1 is added. (1-1 transition)
+            op_plan['Interrupted'] = (op_plan['State'] == 1) & (~op_plan['Energy Start'].isna())
+            # Finding sequences of ones
+            op_plan['Group'] = (
+                        (op_plan['State'] != op_plan['State'].shift()) | op_plan['Interrupted']).cumsum()
+            one_sequences = op_plan[op_plan['State'] == 1].groupby('Group').size()
+            start_indices = op_plan[(op_plan['State'] == 1) & (
+                        (op_plan['State'] != op_plan['State'].shift()) | op_plan['Interrupted'])].index.tolist()
+            one_sequences_tuples = [(index, length) for index, length in zip(start_indices, one_sequences.values)]
+            op_plan.drop(columns=['Group', 'Interrupted'], inplace=True)
             # Adjust the demand
             for subkey in subdict.keys():
                 year, idx = subkey
                 for valo_index, max_avilable_timesteps in one_sequences_tuples:
                     if valo_index == idx:
-                        energy_content = operate_immediate['Energy Start'][valo_index]
+                        energy_content = op_plan['Energy Start'][valo_index]
                         timesteps_until_full = ((m.valo_dict['capacity'][valo] * (1 - energy_content)) /
                                                 (m.valo_dict['max-p'][valo] * m.valo_dict['eff'][valo])) / dt
                         # Check which time factor is limiting
                         if max_avilable_timesteps <= math.ceil(timesteps_until_full):
                             max_operation_timesteps = max_avilable_timesteps
+                            # It is optional to reset 'energy start' at the transition from state 1 to 2/3. If no energy
+                            # start value is given, the energy start value is calculated for the optimization.
+                            if op_plan['State'][valo_index + max_avilable_timesteps] in [2, 3] and \
+                                    pd.isna(op_plan['Energy Start'][idx + max_avilable_timesteps]):
+                                op_plan['Energy Start'][idx + math.floor(max_operation_timesteps)] = \
+                                    op_plan['Energy Start'][idx] + (max_operation_timesteps * dt * m.valo_dict['max-p'][
+                                        valo] * m.valo_dict['eff'][valo]) / m.valo_dict['capacity'][valo]
                         else:
                             max_operation_timesteps = timesteps_until_full
+                            if op_plan['State'][valo_index + max_avilable_timesteps] in [2, 3] and \
+                                    pd.isna(op_plan['Energy Start'][idx + max_avilable_timesteps]):
+                                op_plan['Energy Start'][idx + math.floor(max_avilable_timesteps)] = \
+                                op_plan['Energy Start'][idx] + (max_operation_timesteps * dt * m.valo_dict['max-p'][
+                                    valo] * m.valo_dict['eff'][valo]) / m.valo_dict['capacity'][valo]
                             # Print Warning because the subordinate input logic should not have allowed that
                             print('Warning: The variable load', valo,
                                   'will be full before the end of the must operate '
@@ -318,157 +489,6 @@ def read_in_valo_availability_data(m, timesteps, dt):
                                                                                         valo] * dt
 
     return m
-
-
-def validate_valo_input_files(m, dt, site_name, file_name, valo_data, valo):
-    # Ensure State only contains 0,1,2,3:
-    unique_states = valo_data['State'].unique()
-    allowed_values = {0, 1, 2, 3}
-    invalid_values = set(unique_states) - allowed_values
-    if invalid_values:
-        invalid_indices = valo_data[valo_data['State'].isin(invalid_values)].index.tolist()
-        raise ValueError("The 'State' column in '{}', '{}' contains the invalid"
-                         " values: {} at indicenoons {}".format(site_name, file_name, invalid_values, invalid_indices))
-
-    # Ensure -1 < energy content start < 1
-    valid_values = valo_data['Energy Start'][pd.notna(valo_data['Energy Start'])]
-    if not ((valid_values >= -1) & (valid_values <= 1)).all():
-        raise ValueError(
-            "All values in the 'Energy Start' column of '{}', '{}' should be between -1 and 1.".format(site_name, file_name))
-
-    # Ensure 0 < energy required < 1
-    valid_values = valo_data['Energy Required'][pd.notna(valo_data['Energy Required'])]
-    if not ((valid_values > 0) & (valid_values <= 1)).all():
-        raise ValueError(
-            "All values in the 'Energy Required' column of '{}', '{}' should be between 0 and 1.".format(site_name, file_name))
-
-    # Ensure that there is no 'Energy Start' and 'Energy Required' value given for the same timestep
-    invalid_indices = valo_data[valo_data['Energy Start'].notna() & valo_data['Energy Required'].notna()].index
-    if not invalid_indices.empty:
-        raise ValueError(
-            "In '{}', there should not be a 'Energy Start' and a 'Energy Required' value given for the same "
-            "timestep {}.".format(file_name, invalid_indices[0]))
-
-    # Ensure that there are only allowed transitions occuring
-    transitions = []
-    for idx in range(len(valo_data) - 1):
-        current_state = valo_data['State'].iloc[idx]
-        next_state = valo_data['State'].iloc[idx + 1]
-        transitions.append((idx, current_state, next_state))
-    for idx, first, second in transitions:
-        #### Energy Required ####
-        # Ensure that there is no 'Energy Required' value given for the first timestep
-        if idx == 0 or idx == 1:
-            if pd.notna(valo_data.loc[idx, 'Energy Required']):
-                raise ValueError(
-                    "There should not be any 'Energy Required' value given for timesteps '0' and '1' in '{}',"
-                    " '{}'".format(site_name, file_name))
-        # Ensure that there is a "Energy Required" value set where the state is 2 and the next state is not 2.
-        if first == 2 and second != 2:
-            if pd.isna(valo_data.loc[idx, 'Energy Required']):
-                raise ValueError(
-                    "In '{}', '{}' there is no 'Energy required' value set at index {} where there's a transition "
-                    "from state 2.".format(site_name, file_name, idx))
-        # Ensure that there is only a "Energy Required" value if the State is 2
-        if first != 2:
-            if pd.notna(valo_data.loc[idx, 'Energy Required']):
-                raise ValueError(
-                    "A 'Energy Required' value can only be set for state 2 'operate with goal' "
-                    "(Found in '{}', '{}' at index {}).".format(site_name, file_name, idx))
-        #### Energy Start ####
-        # Ensure that there is no 'Energy Start' value given for the first timestep
-        if idx == 0:
-            if pd.notna(valo_data.loc[idx, 'Energy Start']):
-                raise ValueError(
-                    "There should not be any 'Energy Start' value given for timestep '0' in '{}', '{}'".format(
-                        site_name, file_name))
-        ## NO_Vehicle ##
-        # If the valo is not a vehicle, there are less restrictions:
-        if m.valo_dict['is-vehicle'][valo] == 0:
-            # Ensure that there is no "Energy Start" Value given if there is a to-zero state transition.
-            if second == 0:
-                if pd.notna(valo_data.loc[idx+1, 'Energy Start']):
-                    raise ValueError(
-                        "In '{}', '{}' there should be no 'Energy Start' value set for the transition from state {} to"
-                        " state {} at index {}.".format(site_name, file_name, first, second, idx + 1))
-
-            # Ensure that there is a "Energy Start" Value given for required transitions. For non-vehicle variable loads
-            # a new "Energy Start" Value can always be given as long as the state is not 0. Exclusion for Vehicles is
-            # checked later.
-            elif (first, second) in [(0, 1), (0, 2), (0, 3), (2, 1), (3, 1), (3, 2)]:
-                if pd.isna(valo_data.loc[idx+1, 'Energy Start']):
-                    raise ValueError(
-                        "In '{}', '{}' there is no 'Energy Start' value set at index {} where there's a transition "
-                        "from state {} to state {}.".format(site_name, file_name, idx + 1, first, second))
-            elif (first, second) in [(1, 2), (1, 3)]:
-                if pd.isna(valo_data.loc[idx + 1, 'Energy Start']):
-                    print("HI")
-                    # take calc
-            # Ensure that if there is no "Energy Start" given for transition 2-3 that the "Energy Required" of 2 is
-            # taken.
-            elif (first, second) in [(2, 3)]:
-                if pd.isna(valo_data.loc[idx + 1, 'Energy Start']):
-                    valo_data.loc[idx + 1, 'Energy Start'] = valo_data.loc[idx, 'Energy Required']
-        ## Vehicle ##
-        # If the valo is a vehicle, there are aggravated restrictions:
-        elif m.valo_dict['is-vehicle'][valo] == 1:
-            # If the valo is a vehicle, transitions 2-1, 3-1, and 3-2 are logically impossible.
-            if (first, second) in [(2, 1), (3, 1), (3, 2)]:
-                raise ValueError("In '{}', '{}', there is an illegal state transition at index {} from state'{}' to "
-                                 "state '{}'. Since the valo is defined as a vehicle (set in the input file) these "
-                                 "transitions are illegal.".format(site_name, file_name, idx, first, second))
-            # Ensure that there is no "Energy Start" Value given for not allowed transitions.
-            if (first, second) not in [(0, 1), (0, 2), (0, 3)]:
-                if pd.notna(valo_data.loc[idx + 1, 'Energy Start']):
-                    raise ValueError(
-                        "In '{}', '{}' of type 'is-vehicle' = {} there should be no 'Energy Start' value set for the"
-                        " transition from state {} to state {} at index {}.".format(site_name, file_name,
-                                                                                    m.valo_dict['is-vehicle'][valo],
-                                                                                    first, second, idx + 1))
-            else:
-                if pd.isna(valo_data.loc[idx+1, 'Energy Start']):
-                    raise ValueError(
-                        "In '{}', '{}' there is no 'Energy Start' value set at index {} where there's a transition "
-                        "from state {} to state {}.".format(site_name, file_name, idx + 1, first, second))
-            if (first, second) in [(2, 3)]:
-                valo_data.loc[idx + 1, 'Energy Start'] = valo_data.loc[idx, 'Energy Required']
-            elif (first, second) in [(1, 2), (1, 3)]:
-                print("HI")
-                # calc it
-        else:
-            raise ValueError(
-                "In the Input file 'is-vehicle' has to be 0 or 1 for  '{}', '{}'.".format(
-                    site_name, file_name))
-
-    # Ensure that the operation plan is physically feasible.
-    # Max Energy Content theoretically column denotes the maximum physically possible energy content.
-    valo_data['max_content'] = np.nan
-    valo_data.at[0, 'max_content'] = 0
-    for t in range(1, len(valo_data)):
-        if pd.isna(valo_data.at[t, 'Energy Start']):
-            active = 1 if valo_data.at[t, 'State'] > 0 else 0
-            valo_data.at[t, 'max_content'] = valo_data.at[t-1, 'max_content'] + \
-                                             ((m.valo_dict['max-p'][valo] * dt * m.valo_dict['eff'][valo]) /
-                                              m.valo_dict['capacity'][valo]) * active
-        elif valo_data.at[t, 'Energy Start'] > 0:
-            valo_data.at[t, 'max_content'] = valo_data.at[t, 'Energy Start'] + ((m.valo_dict['max-p'][valo] *
-                                                                                dt * m.valo_dict['eff'][valo]) /
-                                                                                m.valo_dict['capacity'][valo])
-        elif valo_data.at[t, 'Energy Start'] < 0:
-            if - valo_data.at[t, 'Energy Start'] > valo_data.at[t-1, 'max_content']:
-                raise ValueError(
-                    "For variable load '{}','{}', at timestep {} the given negative 'Energy Start' value is not "
-                    "physically feasible".format(site_name, file_name, t))
-            else:
-                valo_data.at[t, 'max_content'] = valo_data.at[t-1, 'max_content'] + valo_data.at[t, 'Energy Start']\
-                                                 + ((m.valo_dict['max-p'][valo] * dt * m.valo_dict['eff'][valo]) /
-                                                m.valo_dict['capacity'][valo])
-        if valo_data.at[t, 'max_content'] > 1:
-            valo_data.at[t, 'max_content'] = 1
-    for t in range(len(valo_data)):
-        if valo_data.at[t, 'Energy Required'] > valo_data.at[t, 'max_content']:
-            raise ValueError("Energy required at timestep {} for variable load '{}','{}'  is not physically "
-                                 "feasible.".format(t, site_name, file_name))
 
 
 # preparing the pyomo model

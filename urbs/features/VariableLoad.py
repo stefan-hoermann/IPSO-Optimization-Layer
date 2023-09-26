@@ -75,11 +75,11 @@ def add_valo(m):
         rule=res_valo_input_by_power_rule_min,
         doc='e_in(t) >= min_power * availability * run(t)')
 
-    for (site_name, valo_name) in m.valo_input_dict:
+    for (site_name, valo_name) in m.valo_operation_plan_dict:
         for stf, sit, v, com in m.valo_tuples:
             if v == valo_name and sit == site_name:
                 # Adding constraints for production goals at specified time points
-                for goal_time in m.valo_input_dict[(sit, valo_name)]['production_goals']:
+                for goal_time in m.valo_operation_plan_dict[(sit, valo_name)]['production_goals']:
                     m.add_component(
                         f"res_production_goal_{goal_time}_{stf}_{sit}_{valo_name}_{com}",
                         pyomo.Constraint(
@@ -91,13 +91,13 @@ def add_valo(m):
     return m
 
 
-# E_con(t) = E_con(t-1) * availability[t-1] +
-#            E_reset(t-1) * (1-availability[t-1]) +
+# E_con(t) = E_con(t-1) * (1-reset[t]) +
+#            E_reset(t) * reset[t-1] +
 #            e_in * eff
 def def_valo_state_rule(m, t, stf, sit, valo, com):
     return m.e_valo_con[t, stf, sit, valo, com] == \
-           m.e_valo_con[t-1, stf, sit, valo, com] * m.valo_input_dict[(sit, valo)]['State'].loc[t-1] + \
-           m.e_valo_reset[t, stf, sit, valo, com] * (1 - m.valo_input_dict[(sit, valo)]['State'].loc[t-1]) +\
+           m.e_valo_con[t-1, stf, sit, valo, com] * (1 - m.valo_operation_plan_dict[(sit, valo)]['reset'].loc[t]) + \
+           m.e_valo_reset[t, stf, sit, valo, com] * m.valo_operation_plan_dict[(sit, valo)]['reset'].loc[t] + \
            m.e_valo_in[t, stf, sit, valo, com] * m.valo_dict['eff'][(stf, sit, valo, com)]
 
 
@@ -108,14 +108,14 @@ def def_valo_state_rule(m, t, stf, sit, valo, com):
 # In case of a BEV, this simulates that the vehicle was in use and thus discharged before returning. The SOC is in this
 # case still dependent on what was charged before the vehicle left for the pause period.
 def def_valo_reset_rule(m, t, stf, sit, valo, com):
-    if m.valo_input_dict[(sit, valo)]['start_energy_contents'][t] > 0:
-        return m.e_valo_reset[t, stf, sit, valo, com] == m.valo_input_dict[(sit, valo)]['start_energy_contents'][t] *\
+    if m.valo_operation_plan_dict[(sit, valo)]['start_energy_contents'][t] > 0:
+        return m.e_valo_reset[t, stf, sit, valo, com] == m.valo_operation_plan_dict[(sit, valo)]['start_energy_contents'][t] * \
                m.valo_dict['capacity'][(stf, sit, valo, com)]
-    elif m.valo_input_dict[(sit, valo)]['start_energy_contents'][t] < 0:
-        latest_previous_charging_timestep = m.valo_input_dict[(sit, valo)]['State'].loc[:t-1][m.valo_input_dict[(sit, valo)]['State'].loc[:t-1] == 1][::-1].idxmax()
+    elif m.valo_operation_plan_dict[(sit, valo)]['start_energy_contents'][t] < 0:
+        latest_previous_charging_timestep = m.valo_operation_plan_dict[(sit, valo)]['State'].loc[:t - 1][m.valo_operation_plan_dict[(sit, valo)]['State'].loc[:t - 1] == 1][::-1].idxmax()
         return m.e_valo_reset[t, stf, sit, valo, com] == \
                m.e_valo_con[latest_previous_charging_timestep, stf, sit, valo, com] + \
-               m.valo_input_dict[(sit, valo)]['start_energy_contents'][t] * m.valo_dict['capacity'][(stf, sit, valo, com)]
+               m.valo_operation_plan_dict[(sit, valo)]['start_energy_contents'][t] * m.valo_dict['capacity'][(stf, sit, valo, com)]
     else:
         if t == 1:
             return m.e_valo_reset[t, stf, sit, valo, com] == 0
@@ -131,19 +131,19 @@ def res_valo_state_by_capacity_rule(m, t, stf, sit, valo, com):
 
 # e_in(t) <= max_power * availability * run(t) * dt
 def res_valo_input_by_power_rule_max(m, t, stf, sit, valo, com):
-    return m.e_valo_in[t, stf, sit, valo, com] <= m.valo_dict['max-p'][(stf, sit, valo, com)] *\
-           m.valo_input_dict[(sit, valo)]['State'].loc[t] * m.valo_mode_run[t, stf, sit, valo, com] * m.dt
+    return m.e_valo_in[t, stf, sit, valo, com] <= m.valo_dict['max-p'][(stf, sit, valo, com)] * \
+           m.valo_operation_plan_dict[(sit, valo)]['State'].loc[t] * m.valo_mode_run[t, stf, sit, valo, com] * m.dt
 
 
 # e_in(t) >= min_power * availability * run(t)
 def res_valo_input_by_power_rule_min(m, t, stf, sit, valo, com):
-    return m.e_valo_in[t, stf, sit, valo, com] >= m.valo_dict['min-p'][(stf, sit, valo, com)] *\
-           m.valo_input_dict[(sit, valo)]['State'].loc[t] * m.valo_mode_run[t, stf, sit, valo, com] * m.dt
+    return m.e_valo_in[t, stf, sit, valo, com] >= m.valo_dict['min-p'][(stf, sit, valo, com)] * \
+           m.valo_operation_plan_dict[(sit, valo)]['State'].loc[t] * m.valo_mode_run[t, stf, sit, valo, com] * m.dt
 
 
 # Reach production goal at given time as defined in the valo_input file
 def res_production_goal_rule(m, t, stf, sit, valo, com):
-    return m.e_valo_con[t, stf, sit, valo, com] >= m.valo_input_dict[(sit, valo)]['production_goals'][t] \
+    return m.e_valo_con[t, stf, sit, valo, com] >= m.valo_operation_plan_dict[(sit, valo)]['production_goals'][t] \
            * m.valo_dict['capacity'][(stf, sit, valo, com)]
 
 

@@ -1,12 +1,12 @@
-﻿;State;Energy Start;Energy Required
+﻿;State;Set Energy Content;Energy Content Goal
 0;0;;
-1;2;0.5;
+1;2;0.6;
 2;2;;
 3;2;;
 4;2;;
 5;2;;
 6;2;;
-7;2;;0.6
+7;2;;0,7
 8;0;;
 9;0;;
 10;1;0.4;

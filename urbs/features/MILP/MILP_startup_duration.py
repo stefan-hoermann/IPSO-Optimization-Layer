@@ -2,6 +2,10 @@ import pyomo.core as pyomo
 
 
 def MILP_startup_duration(m):
+    # Formulation of a new Set does not make sense because the partial_process_input constraint is deleted for all
+    # partial inputs. The logic also works for all partial inputs (startup_duration = 0). Validation ensures that all
+    # processes with a startup duration also must have a min-fraction
+
     ##### INPUT #####
     # run[1/0](t) does not have to be accounted for here since it is already implemented in e_pro_in_no_start
     # e_pro_in(t) = e_pro_in_calc_help(t) + startup[1/0](t) * startup_cost
@@ -136,7 +140,7 @@ def def_partial_process_input_MILP_rule_C(m, tm, stf, sit, pro, coin):
 
 
 def def_partial_process_input_MILP_rule_D(m, tm, stf, sit, pro, coin):
-    # Rule C: e_pro_in_calc_help(t) - e_pro_in_no_start(t) >= - startup[1/0](t) * e_in_max
+    # Rule D: e_pro_in_calc_help(t) - e_pro_in_no_start(t) >= - startup[1/0](t) * e_in_max
     return m.e_pro_in_calc_help[tm, stf, sit, pro, coin] - m.e_pro_in_no_start_up[tm, stf, sit, pro, coin] \
            >= - m.pro_mode_startup[tm, stf, sit, pro] * m.process_dict['cap-up'][(stf, sit, pro)] * m.dt
 

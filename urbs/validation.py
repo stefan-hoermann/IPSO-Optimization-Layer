@@ -75,6 +75,20 @@ def validate_input(data, dt):
         if data['process'].loc[index]['min-fraction'] > 1:
             raise ValueError('Ensure that min-fraction <= 1')
 
+
+    for index in data['process'].index:
+        if data['process'].loc[index]['min-fraction'] == 0 and data['process'].loc[index]['start-up-duration'] > 0:
+            raise ValueError('Ensure that min-fraction > 0 if start-up-duration is set for {}.'.format(index))
+
+    for index in data['process'].index:
+        if data['process'].loc[index]['min-fraction'] == 0 and data['process'].loc[index]['min-con-op-time'] > 0:
+            raise ValueError('Ensure that min-fraction > 0 if min-con-op-time is set for {}.'.format(index))
+
+    for index in data['process'].index:
+        if data['process'].loc[index]['min-con-op-time'] == 0 \
+                and data['process'].loc[index]['pre-active-timesteps'] > 0:
+            raise ValueError('Ensure that min-con-op-time > 0 if pre-active-timesteps is set for {}.'.format(index))
+
     for index in data['process'].index:
         if data['process'].loc[index]['start-up-duration'] > dt:
             raise ValueError('Ensure that start-up-duration <= timestep length.')

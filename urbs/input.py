@@ -286,6 +286,9 @@ def validate_valo_input_files(m, dt, site_name, file_name, op_plan, valo):
         invalid_indices = op_plan[op_plan['State'].isin(invalid_values)].index.tolist()
         raise ValueError("The 'State' column in '{}', '{}' contains the invalid"
                          " values: {} at indicenoons {}".format(site_name, file_name, invalid_values, invalid_indices))
+    # Ensure that the initial State is 0
+    if op_plan['State'][0] != 0:
+        raise ValueError("The first value in the  'State' column in '{}', '{}' should be zero.".format(site_name, file_name))
 
     # Ensure that the first "Set Energy Content" value is bigger not negative
     first_set_energy_content_value = op_plan['Set Energy Content'].dropna().iloc[0]
@@ -660,6 +663,14 @@ def pyomo_model_prep(data, timesteps, dt):
     r_out_min_fraction = r_out_min_fraction[r_out_min_fraction > 0]
     m.r_out_min_fraction_dict = r_out_min_fraction.to_dict()
 
+    # minimum consecutive operation
+    # only keep those entries whose values are
+    # a) positive and
+    # b) numeric (implicitely, as NaN or NV compare false against 0)
+    min_consecutive_op_time = data['process']['min-con-op-time']
+    min_consecutive_op_time = min_consecutive_op_time[min_consecutive_op_time > 0]
+    m.min_consecutive_op_time_dict = min_consecutive_op_time.to_dict()
+    
     # storages with fixed initial state
     if m.mode['sto']:
         stor_init_bound = storage['init']

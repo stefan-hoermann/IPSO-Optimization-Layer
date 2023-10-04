@@ -3,28 +3,38 @@ import pandas as pd
 
 # Ensures a minimum consecutive operation time
 def MILP_min_operation_time(m):
+    # validation: ther must be a min-ocon-op time if pre-active timesteps is given min_consecutive_op_time_dict
+    m.pro_min_con_duration_tuples = pyomo.Set(
+        within=m.stf * m.sit * m.pro,
+        initialize=[(stf, site, process)
+                    for (stf, site, process) in m.pro_partial_tuples
+                    for (st, si, pro) in tuple(m.min_consecutive_op_time_dict.keys())
+                    if process == pro and si == site],
+        doc='Processes with min consecutive operation time,'
+            'e.g. (2020,Hormann,CHP1)')
+
     m.pro_out_last_n_timesteps = pyomo.Var(
-        m.t, m.pro_partial_tuples,
+        m.t, m.pro_min_con_duration_tuples,
         within=pyomo.Boolean,
         doc='Boolean: True if process inactive/not in operation in one of the last n timesteps.')
 
     m.res_pro_min_cons_op_time_1 = pyomo.Constraint(
-        m.tm, m.pro_partial_tuples,
+        m.tm, m.pro_min_con_duration_tuples,
         rule=res_pro_min_cons_op_time_rule_1,
         doc='n * out_last_n_timesteps[1/0] >= (1 - run(t-1)) + (1 - run(t-i)) + … + (1 - run(t-n))')
 
     m.res_pro_min_cons_op_time_2 = pyomo.Constraint(
-        m.tm, m.pro_partial_tuples,
+        m.tm, m.pro_min_con_duration_tuples,
         rule=res_pro_min_cons_op_time_rule_2,
         doc='run(t) >= out_last_n_timesteps[1/0] - (1 - run(t-1))')
 
     m.res_pro_min_cons_op_time_3 = pyomo.Constraint(
-        m.pro_partial_tuples,
+        m.pro_min_con_duration_tuples,
         rule=res_pro_min_cons_op_time_rule_3,
         doc='run(0) == 0 if not active before')
 
     # m.res_pro_min_cons_op_time_test_rule = pyomo.Constraint(
-    #     m.pro_partial_tuples,
+    #     m.pro_min_con_duration_tuples,
     #     rule=res_pro_min_cons_test,
     #     doc='run(0) == 0 if not active before')
     return m

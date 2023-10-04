@@ -5,3 +5,6 @@ result/*
 results/*
 doc/_build/*
 *.xlsx
+*.csv
+
+Input Variable Load/Hormann/K2i.csv

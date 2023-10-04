@@ -2,6 +2,7 @@ import math
 import pyomo.core as pyomo
 from datetime import datetime
 from .features import *
+from .features.VariableLoad import add_valo
 from .input import *
 
 
@@ -25,7 +26,7 @@ def create_model(data, dt=1, timesteps=None, objective='cost',
     # Optional
     if not timesteps:
         timesteps = data['demand'].index.tolist()
-    m = pyomo_model_prep(data, timesteps)  # preparing pyomo model
+    m = pyomo_model_prep(data, timesteps, dt)  # preparing pyomo model
     m.name = 'urbs'
     m.created = datetime.now().strftime('%Y%m%dT%H%M')
     m._data = data
@@ -278,6 +279,8 @@ def create_model(data, dt=1, timesteps=None, objective='cost',
             m = add_transmission(m)
     if m.mode['sto']:
         m = add_storage(m)
+    if m.mode['valo']:
+        m = add_valo(m)
     if m.mode['dsm']:
         m = add_dsm(m)
     if m.mode['bsp']:
@@ -299,7 +302,7 @@ def create_model(data, dt=1, timesteps=None, objective='cost',
     m.res_vertex = pyomo.Constraint(
         m.tm, m.com_tuples,
         rule=res_vertex_rule,
-        doc='storage + transmission + process + source + buy - sell == demand')
+        doc='valo + storage + transmission + process + source + buy - sell == demand')
     m.res_stock_step = pyomo.Constraint(
         m.tm, m.com_tuples,
         rule=res_stock_step_rule,
@@ -447,7 +450,7 @@ def create_model(data, dt=1, timesteps=None, objective='cost',
 # commodity
 
 # vertex equation: calculate balance for given commodity and site;
-# contains implicit constraints for process activity, import/export and
+# contains implicit constraints for process activity, import/export, valo and
 # storage activity (calculated by function commodity_balance);
 # contains implicit constraint for stock commodity source term
 def res_vertex_rule(m, tm, stf, sit, com, com_type):
@@ -458,10 +461,10 @@ def res_vertex_rule(m, tm, stf, sit, com, com_type):
         return pyomo.Constraint.Skip
 
     # helper function commodity_balance calculates balance from input to
-    # and output from processes, storage and transmission.
-    # if power_surplus > 0: production/storage/imports create net positive
+    # and output from processes, valo, storage and transmission.
+    # if power_surplus > 0: production/valo/storage/imports create net positive
     #                       amount of commodity com
-    # if power_surplus < 0: production/storage/exports consume a net
+    # if power_surplus < 0: production/valo/storage/exports consume a net
     #                       amount of the commodity com
     power_surplus = - commodity_balance(m, tm, stf, sit, com)
 

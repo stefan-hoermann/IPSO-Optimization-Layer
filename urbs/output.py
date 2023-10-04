@@ -226,6 +226,19 @@ def get_timeseries(instance, stf, com, sites, timesteps=None):
         stored = pd.DataFrame(0, index=timesteps,
                               columns=['Level', 'Stored', 'Retrieved'])
 
+    # valo
+    # group valo energies by commodity
+    # select all entries with desired commodity co
+    charged = get_entities(instance, ['e_valo_con', 'e_valo_in'])
+    try:
+        charged = charged.loc[timesteps].xs([stf, com], level=['stf', 'com'])
+        charged = charged.groupby(level=['t', 'sit']).sum()
+        charged = charged.loc[(slice(None), sites), :].sum(level='t')
+        charged.columns = ['SOC', 'Charged']
+    except (KeyError, ValueError):
+        charged = pd.DataFrame(0, index=timesteps,
+                              columns=['SOC', 'Charged'])
+
     # DEMAND SIDE MANAGEMENT (load shifting)
     dsmup = get_entity(instance, 'dsm_up')
     dsmdo = get_entity(instance, 'dsm_down')
@@ -279,7 +292,7 @@ def get_timeseries(instance, stf, com, sites, timesteps=None):
         voltage_angle = pd.DataFrame(index=timesteps)
     voltage_angle.name = 'Voltage Angle'
 
-    return created, consumed, stored, imported, exported, dsm, voltage_angle
+    return created, consumed, stored, charged, imported, exported, dsm, voltage_angle
 
 
 def drop_all_zero_columns(df):

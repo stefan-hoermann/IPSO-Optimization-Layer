@@ -86,6 +86,25 @@ def validate_input(data, dt):
             raise ValueError('Ensure that pre-active-timesteps is an integer.')
 
 
+    if not data['valo'].empty:
+        # Variable Loads are modelled as only having one commodity.
+        valo_names = data['valo'].index.get_level_values(2)
+        if valo_names.duplicated().any():
+            raise ValueError('Ensure that there are no Variabel Loads with the same name. Variable loads can only '
+                             'have one commodity.')
+        for index in data['valo'].index:
+            if not 0 <= data['valo'].loc[index]['min-p'] <= data['valo'].loc[index]['max-p']:
+                raise ValueError("Ensure that 0 <= 'min-p' <= 'max-p' for {}".format(index))
+            if data['valo'].loc[index]['max-p'] <= 0:
+                raise ValueError("Ensure that 'max-p' > 0 for {}".format(index))
+            if not 0 < data['valo'].loc[index]['eff'] <= 1:
+                raise ValueError("Ensure that 0 < 'eff' < 1 for {}".format(index))
+            if not data['valo'].loc[index]['is-vehicle'] in [0, 1]:
+                raise ValueError("'is-vehicle' must be set to 0 (not a vehilce) or 1 (vehicle) for {}".format(index))
+            if not 0 < data['valo'].loc[index]['capacity']:
+                raise ValueError("Ensure that 'capacity' > 0 for {}".format(index))
+
+
     if not data['transmission'].empty:
         for index in data['transmission'].index:
             if not (data['transmission'].loc[index]['cap-lo'] <=

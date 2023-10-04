@@ -53,30 +53,30 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
                 report_sites_name[sit] = str(sit)
 
             for lv in help_sit:
-                (created, consumed, stored, imported, exported,
+                (created, consumed, stored, charged, imported, exported,
                  dsm, voltage_angle) = get_timeseries(instance, stf, com, lv)
 
                 overprod = pd.DataFrame(
                     columns=['Overproduction'],
                     data=created.sum(axis=1) - consumed.sum(axis=1) +
                     imported.sum(axis=1) - exported.sum(axis=1) +
-                    stored['Retrieved'] - stored['Stored'])
+                    stored['Retrieved'] - stored['Stored'] - charged['Charged'])
 
                 tableau = pd.concat(
-                    [created, consumed, stored, imported, exported, overprod,
+                    [created, consumed, stored, charged, imported, exported, overprod,
                      dsm, voltage_angle],
                     axis=1,
-                    keys=['Created', 'Consumed', 'Storage', 'Import from',
+                    keys=['Created', 'Consumed', 'Storage', 'valo', 'Import from',
                           'Export to', 'Balance', 'DSM', 'Voltage Angle'])
                 help_ts[(stf, lv, com)] = tableau.copy()
 
                 # timeseries sums
                 help_sums = pd.concat([created.sum(), consumed.sum(),
-                                       stored.sum().drop('Level'),
+                                       stored.sum().drop('Level'), charged.sum().drop('SOC'),
                                        imported.sum(), exported.sum(),
                                        overprod.sum(), dsm.sum()],
                                       axis=0,
-                                      keys=['Created', 'Consumed', 'Storage',
+                                      keys=['Created', 'Consumed', 'Storage', 'valo',
                                             'Import', 'Export', 'Balance',
                                             'DSM'])
                 try:
@@ -91,11 +91,11 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
 
             # timeseries sums
             sums = pd.concat([created.sum(), consumed.sum(),
-                              stored.sum().drop('Level'),
+                              stored.sum().drop('Level'), charged.sum().drop('SOC'),
                               imported.sum(), exported.sum(), overprod.sum(),
                               dsm.sum()],
                              axis=0,
-                             keys=['Created', 'Consumed', 'Storage', 'Import',
+                             keys=['Created', 'Consumed', 'Storage', 'valo', 'Import',
                                    'Export', 'Balance', 'DSM'])
             energies.append(sums.to_frame("{}.{}.{}".format(stf, sit, com)))
 

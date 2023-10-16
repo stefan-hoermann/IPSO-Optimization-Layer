@@ -112,9 +112,8 @@ def def_valo_reset_rule(m, t, stf, sit, valo, com):
         return m.e_valo_reset[t, stf, sit, valo, com] == m.valo_operation_plan_dict[(sit, valo)]['set_energy_content'][t] * \
                m.valo_dict['capacity'][(stf, sit, valo, com)]
     elif m.valo_operation_plan_dict[(sit, valo)]['set_energy_content'][t] < 0:
-        latest_previous_charging_timestep = m.valo_operation_plan_dict[(sit, valo)]['state'].loc[:t - 1][m.valo_operation_plan_dict[(sit, valo)]['state'].loc[:t - 1] == 1][::-1].idxmax()
         return m.e_valo_reset[t, stf, sit, valo, com] == \
-               m.e_valo_con[latest_previous_charging_timestep, stf, sit, valo, com] + \
+               m.e_valo_con[t-1, stf, sit, valo, com] + \
                m.valo_operation_plan_dict[(sit, valo)]['set_energy_content'][t] * m.valo_dict['capacity'][(stf, sit, valo, com)]
     else:
         if t == 1:
@@ -145,7 +144,6 @@ def res_valo_input_by_power_rule_min(m, t, stf, sit, valo, com):
 def res_production_goal_rule(m, t, stf, sit, valo, com):
     return m.e_valo_con[t, stf, sit, valo, com] >= m.valo_operation_plan_dict[(sit, valo)]['production_goals'][t] \
            * m.valo_dict['capacity'][(stf, sit, valo, com)]
-
 
 
 def valo_balance(m, tm, stf, sit, com):

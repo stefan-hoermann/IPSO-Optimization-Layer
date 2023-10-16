@@ -2,7 +2,7 @@ import math
 import pyomo.core as pyomo
 from datetime import datetime
 from .features import *
-from .features.VariableLoad import add_valo
+from .features.VariableLoad import add_valo, variable_load_cost
 from .input import *
 
 
@@ -804,6 +804,8 @@ def def_costs_rule(m, cost_type):
             cost += transmission_cost(m, cost_type)
         if m.mode['sto']:
             cost += storage_cost(m, cost_type)
+        if m.mode['valo']:
+            cost += variable_load_cost(m, cost_type)
         return m.costs[cost_type] == cost
 
     elif cost_type == 'Fuel':

@@ -156,6 +156,14 @@ def valo_balance(m, tm, stf, sit, com):
                for stframe, site, valo, commodity in m.valo_tuples
                if site == sit and stframe == stf and commodity == com)
 
+def variable_load_cost(m, cost_type):
+    """returns storage cost function for the different cost types"""
+    # For valos only a variable Revenue is modelled
+    if cost_type == 'Variable':
+        return sum(m.e_valo_in[(tm,) + l] * m.valo_dict['eff'][l] * m.weight *
+                   m.typeday['weight_typeday'][(m.stf[1], tm)] * m.valo_dict['var-cost'][l] *
+                   m.valo_dict['cost_factor'][l] for tm in m.tm for l in m.valo_tuples)
+
 
 
 

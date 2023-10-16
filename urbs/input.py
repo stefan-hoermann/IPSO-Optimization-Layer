@@ -851,6 +851,8 @@ def pyomo_model_prep(data, timesteps, dt):
                                        .apply(effective_distance, m=m))
             storage['cost_factor'] = (storage['discount-factor'] *
                                       storage['eff-distance'])
+        if m.mode['valo']:
+            raise ValueError("Intertemporal logic for valos is not implemented yet")
     else:
         # for one year problems
         process['invcost-factor'] = (
@@ -879,6 +881,9 @@ def pyomo_model_prep(data, timesteps, dt):
                                              x['wacc']),
                               axis=1))
             storage['cost_factor'] = 1
+        if m.mode['valo']:
+            variableload['cost_factor'] = 1
+
 
     # Converting Data frames to dictionaries
     m.global_prop_dict = m.global_prop.to_dict()
@@ -904,6 +909,7 @@ def pyomo_model_prep(data, timesteps, dt):
         m.valo_dict = variableload.to_dict()
         # Read in the Variable Load operation plans which are stored in different folders
         m = read_in_valo_availability_data(m, timesteps, dt)
+
 
 
 

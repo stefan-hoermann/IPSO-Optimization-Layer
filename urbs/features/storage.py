@@ -279,6 +279,15 @@ def storage_balance(m, tm, stf, sit, com):
                if site == sit and stframe == stf and commodity == com)
 
 
+# storage balance
+def storage_feed_in_generation(m, tm, stf, sit, com):
+    return sum(m.e_sto_out[(tm, stframe, site, storage, com)]
+               # usage as input for storage increases consumption
+               # output from storage decreases consumption
+               for stframe, site, storage, commodity in m.sto_tuples
+               if site == sit and stframe == stf and commodity == com and m.storage_dict['allow-feed-in']
+               [(stf, sit, storage, com)] == 1)
+
 # storage costs
 def storage_cost(m, cost_type):
     """returns storage cost function for the different cost types"""

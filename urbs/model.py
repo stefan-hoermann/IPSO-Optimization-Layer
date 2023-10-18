@@ -319,6 +319,10 @@ def create_model(data, dt=1, timesteps=None, objective='cost',
         m.com_tuples,
         rule=res_env_total_rule,
         doc='total environmental commodity output <= commodity.max')
+    m.res_feed_in = pyomo.Constraint(
+        m.tm, m.com_tuples,
+        rule=res_feed_in_rule,
+        doc='feed_in_generation >= feed_in')
 
     # process
     m.def_process_input = pyomo.Constraint(
@@ -491,11 +495,36 @@ def res_vertex_rule(m, tm, stf, sit, com, com_type):
 
     return power_surplus == 0
 
+
+def res_feed_in_rule(m, tm, stf, sit, com, com_type):
+    # This constraint only applies to commodities with a 'Feed-In' process.
+    if com in m.com_env:
+        return pyomo.Constraint.Skip
+    if com in m.com_supim:
+        return pyomo.Constraint.Skip
+    if com in m.com_stock:
+        return pyomo.Constraint.Skip
+    if com in m.com_buy:
+        return pyomo.Constraint.Skip
+    if com in m.com_sell:
+        return pyomo.Constraint.Skip
+    if not ((stf, sit, 'Feed-In') in m.pro_tuples and (stf, 'Feed-In', com) in m.r_in_dict):
+        return pyomo.Constraint.Skip
+
+    feed_in_generation = sum(m.e_pro_out[(tm, stframe, site, process, com)]
+                   for stframe, site, process in m.pro_tuples
+                   if site == sit and stframe == stf and
+                   (stframe, process, com) in m.r_out_dict and m.process_dict['allow-feed-in'][(stf, sit, process)] == 1)
+
+    if m.mode['sto']:
+        feed_in_generation += storage_feed_in_generation(m, tm, stf, sit, com)
+
+    return m.e_pro_in[(tm, stf, sit, 'Feed-In', com)] <= feed_in_generation
+
+
 # stock commodity purchase == commodity consumption, according to
 # commodity_balance of current (time step, site, commodity);
 # limit stock commodity use per time step
-
-
 def res_stock_step_rule(m, tm, stf, sit, com, com_type):
     if com not in m.com_stock:
         return pyomo.Constraint.Skip

@@ -75,6 +75,18 @@ def validate_input(data, dt):
         if data['process'].loc[index]['min-fraction'] > 1:
             raise ValueError('Ensure that min-fraction <= 1')
 
+    # Ensure that for every process there is a process-commodity input
+    for index_1 in data['process'].index:
+        if index_1[2] not in [idx[1] for idx in data['process_commodity'].index]:
+            raise ValueError("Ensure that all processes in the process sheet are also accounted for in the process-"
+                             "commodity sheet! '{}' is not accounted for.".format(index_1[2]))
+    # Ensure that every process mentioned in the process-commodity sheet is intialized in the process sheet.
+    for index_1 in data['process_commodity'].index:
+        if index_1[1] not in [idx[2] for idx in data['process'].index]:
+            raise ValueError("Ensure that all processes in the process-commodity sheet are also accounted for in the "
+                             "process sheet! '{}' is not accounted for.".format(index_1[1]))
+
+
 
     for index in data['process'].index:
         if data['process'].loc[index]['min-fraction'] == 0 and data['process'].loc[index]['start-up-duration'] > 0:
@@ -146,6 +158,20 @@ def validate_input(data, dt):
     for index in data['storage'].index:
         if data['storage'].loc[index]['out-in-p-ratio'] <= 0:
             raise ValueError('Ensure that out-in-p-ratio is bigger than 0')
+
+    for index in data['process'].index:
+        if not (data['process'].loc[index]['allow-feed-in'] == 0 or data['process'].loc[index]['allow-feed-in'] == 1):
+            raise ValueError("Ensure that 'allow-feed-in' is either 0 (allow-feed-in from this process not allowed) or 1 (feed in "
+                             "from this process is allowed)")
+
+    for index in data['storage'].index:
+        if not (data['storage'].loc[index]['allow-feed-in'] == 0 or data['storage'].loc[index]['allow-feed-in'] == 1):
+            raise ValueError("Ensure that 'allow-feed-in' is either 0 (allow-feed-in from this process not allowed) or 1 (feed in "
+                             "from this process is allowed)")
+
+    if ((data['process']['allow-feed-in'] != 0).any() or (data['storage']['allow-feed-in'] != 0).any()):
+        if 'Feed-In' not in [idx[2] for idx in data['process'].index]:
+            raise ValueError("There must be a process named 'Feed-In' if feeed in should not  ")
         
     if not data['storage'].empty:
         for index in data['storage'].index:

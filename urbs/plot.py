@@ -171,7 +171,9 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
     all_axes.append(ax1)
 
     # PLOT CONSUMED
-
+    
+    if consumed.empty or len(consumed.columns) == 0:
+        consumed['Default'] = 0
     # stack plot for consumed commodities (divided by dt for power)
     sp00 = ax0.stackplot(hoursteps[1:],
                          -consumed.values.T / dt[0],

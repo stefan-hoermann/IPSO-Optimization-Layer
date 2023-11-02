@@ -117,6 +117,14 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt,
         report_tuples=report_tuples,
         report_sites_name=report_sites_name)
 
+    # hard coded for economic evaluation, delete/comment out if there are any problems
+    hard_coded_economic_evaluation_dir = "C:/Users/steft/OneDrive/Desktop/Uni/Master/Masterarbeit/Hörmann Data/Python extract data/Inputs_Outputs/Input_Scenario_Base"
+    report(
+        prob,
+        os.path.join(hard_coded_economic_evaluation_dir, '{}.xlsx').format(sce),
+        report_tuples=report_tuples,
+        report_sites_name=report_sites_name)
+
     # result plots
     result_figures(
         prob,

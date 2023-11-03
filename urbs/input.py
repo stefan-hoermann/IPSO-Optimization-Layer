@@ -673,7 +673,7 @@ def pyomo_model_prep(data, timesteps, dt):
     
     # storages with fixed initial state
     if m.mode['sto']:
-        stor_init_bound = storage['init']
+        stor_init_bound = storage['start_con']
         m.stor_init_bound_dict = \
             stor_init_bound[stor_init_bound >= 0].to_dict()
 

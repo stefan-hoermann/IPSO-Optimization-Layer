@@ -512,7 +512,7 @@ Storage Technical Parameters
 ----------------------------
 
 **Initial and Final State of Charge (relative)**, :math:`I_{yvs}`,
-``m.storage_dict['init'][(stf, sit, sto, com)]``: The parameter :math:`I_{yvs}`
+``m.storage_dict['start_con'][(stf, sit, sto, com)]``: The parameter :math:`I_{yvs}`
 represents the initial state of charge of a storage :math:`s` in a site
 :math:`v` and support timeframe :math:`y`. If this value is left unspecified,
 the initial state of charge is variable. The initial and final value are set as

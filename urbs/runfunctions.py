@@ -22,7 +22,7 @@ def prepare_result_directory(result_name):
     
     """
     # timestamp for result directory
-    now = datetime.now().strftime('%Y%m%dT%H%M')
+    now = datetime.now().strftime('%Y%m%dT%H%M%S')
 
     # create result directory if not existent
     result_dir = os.path.join('result', '{}-{}'.format(result_name, now))

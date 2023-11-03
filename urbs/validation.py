@@ -195,11 +195,16 @@ def validate_input(data, dt):
 
     # Identify non sensible values for inputs
     if not data['storage'].empty:
-        if (data['storage']['init'] > 1).any():
+        if (data['storage']['start_con'] > 1).any():
             raise ValueError("In worksheet 'storage' all values in column "
                              "'init' must be either in [0,1] (for a fixed "
                              "initial storage level) or 'nan' for a variable "
                              "initial storage level")
+        if (data['storage']['end_con'] > 1).any():
+            raise ValueError("In worksheet 'storage' all values in column "
+                             "'init' must be either in [0,1] (for a fixed "
+                             "end storage level) or 'nan' for a cyclical "
+                             "storage level")
 
     # Identify outdated column label 'maxperstep' on the commodity tab and
     # suggest a rename to 'maxperhour'

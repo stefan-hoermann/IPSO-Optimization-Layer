@@ -110,10 +110,10 @@ def add_storage(m):
         m.sto_init_bound_tuples,
         rule=def_initial_storage_state_rule,
         doc='storage content initial == and final >= storage.init * capacity')
-    m.res_storage_state_cyclicity = pyomo.Constraint(
-        m.sto_tuples,
-        rule=res_storage_state_cyclicity_rule,
-        doc='storage content initial <= final, both variable')
+    # m.res_storage_state_cyclicity = pyomo.Constraint(
+    #     m.sto_tuples,
+    #     rule=res_storage_state_cyclicity_rule,
+    #     doc='storage content initial <= final, both variable')
     m.def_storage_energy_power_ratio = pyomo.Constraint(
         m.sto_ep_ratio_tuples,
         rule=def_storage_energy_power_ratio_rule,
@@ -283,11 +283,9 @@ def storage_balance(m, tm, stf, sit, com):
                if site == sit and stframe == stf and commodity == com)
 
 
-# storage balance
+# For feed-in restriction
 def storage_feed_in_generation(m, tm, stf, sit, com):
     return sum(m.e_sto_out[(tm, stframe, site, storage, com)]
-               # usage as input for storage increases consumption
-               # output from storage decreases consumption
                for stframe, site, storage, commodity in m.sto_tuples
                if site == sit and stframe == stf and commodity == com and m.storage_dict['allow-feed-in']
                [(stf, sit, storage, com)] == 1)
@@ -322,10 +320,11 @@ def storage_cost(m, cost_type):
                    m.storage_dict['var-cost-c'][s] *
                    m.storage_dict['cost_factor'][s] +
                    (m.e_sto_in[(tm,) + s] + m.e_sto_out[(tm,) + s]) *
-                   m.weight * m.typeday['weight_typeday'][(m.stf[1],tm)] * m.storage_dict['var-cost-p'][s] *
+                   m.weight * m.typeday['weight_typeday'][(m.stf[1], tm)] * m.storage_dict['var-cost-p'][s] *
                    m.storage_dict['cost_factor'][s]
                    for tm in m.tm
-                   for s in m.sto_tuples)
+                   for s in m.sto_tuples)\
+               - sum(m.weight*m.storage_dict['cost_factor'][s] * m.e_sto_con[m.t[len(m.t)], s] * m.storage_dict['end_worth'][s] for s in m.sto_tuples)
 
 
 def op_sto_tuples(sto_tuple, m):

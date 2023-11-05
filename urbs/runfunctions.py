@@ -39,7 +39,7 @@ def setup_solver(optim, logfile='solver.log'):
         # http://www.gurobi.com/documentation/5.6/reference-manual/parameters
         optim.set_options("logfile={}".format(logfile))
         # optim.set_options("timelimit=7200")  # seconds
-        optim.set_options("mipgap=5e-4")  # default = 1e-4
+        optim.set_options("mipgap=1e-2")  # default = 1e-4
     elif optim.name == 'glpk':
         # reference with list of options
         # execute 'glpsol --help'

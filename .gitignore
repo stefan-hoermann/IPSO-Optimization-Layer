@@ -4,4 +4,4 @@
 result/*
 results/*
 doc/_build/*
-*.xlsx
+*.xlsx !Master Input File/Input_MILP_original.xlsx

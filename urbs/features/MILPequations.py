@@ -11,8 +11,7 @@ def add_MILP_equations(m):
         # Choose MILP or MIQP, no clear preference on calculation speed yet
         # m = MIQP_partload(m)
         m = MILP_partload(m)
-       # m = MILP_min_operation_time(m)
-        #if any(m._data['process']['min-con-op-time'] != 0):
+
 
 
     return m

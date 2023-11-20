@@ -34,7 +34,8 @@ def MILP_partload(m):
     m = MILP_pro_p_offset(m)
 
     # EXTENSION: Min_Operation_Time constraint
-    m = MILP_min_operation_time(m)
+    if 'MILP min_op_time' in m._data['MILP'].index:
+        m = MILP_min_operation_time(m)
 
 
     m.del_component(m.def_partial_process_input)
@@ -67,9 +68,11 @@ def MILP_partload(m):
         doc='e_pro_out = (offset + slope * tau_pro) * eff_factor'
             'slope = (R -  min_fraction * r) / (1 - min_fraction); offset = R - slope')
     # EXTENSION minimum startup duration:
-    # m = MILP_startup_duration(m)
-    # Gradient restrictions
-    # m = MILP_max_gradient(m)
+    if 'MILP startup_duration' in m._data['MILP'].index:
+        m = MILP_startup_duration(m)
+    # EXTENSION Gradient restrictions
+    if 'MILP improve_max_gradient' in m._data['MILP'].index:
+        m = MILP_max_gradient(m)
 
     # m.def_test_rule = pyomo.Constraint(
     #     m.tm,

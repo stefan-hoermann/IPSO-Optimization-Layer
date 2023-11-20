@@ -259,6 +259,11 @@ def validate_input(data, dt):
 
     # Identify inconsistency or problems while using MILP equations
     if not data['MILP'].empty:
+        if any(var in data['MILP'].index for var in
+               ['MILP improve_max_gradient', 'MILP startup_duration', 'MILP min_op_time']) and 'MILP partload' not in \
+                data['MILP'].index:
+            raise ValueError("'MILP improve_max_gradient', 'MILP startup_duration', or 'MILP min_op_time' can "
+                             "only be set active if 'MILP partload' is set active.")
         for i in data['process'].index.tolist():
             if (data['process'].loc[i, 'min-fraction'] > 0 and (data['process'].loc[i, 'start-up-energy'] <= 0 or
                                                                pd.isna(data['process'].loc[i, 'start-up-energy']))):

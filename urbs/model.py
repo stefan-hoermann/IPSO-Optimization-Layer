@@ -383,7 +383,7 @@ def create_model(data, dt=1, timesteps=None, objective='cost',
     # is added later than the other features because it overrides some parts
     if m.mode['mip']:
         m = add_MILP_equations(m)
-        m = add_gradient_penalty(m)
+    m = add_gradient_penalty(m)
 
     #if m.mode['int']:
     #    m.res_global_co2_limit = pyomo.Constraint(
@@ -831,6 +831,7 @@ def def_costs_rule(m, cost_type):
                 m.process_dict['cost_factor'][p]
                 for tm in m.tm
                 for p in m.pro_tuples)
+
         cost += calculate_pro_gradient_penalty(m)
         cost += calculate_sto_gradient_penalty(m)
         if m.mode['tra']:

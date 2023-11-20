@@ -2,10 +2,10 @@ import os
 import shutil
 import urbs
 
-def run_optimization(optimization_length=192):
+def run_optimization(optimization_length=96):
     #input_files = 'single_year_example.xlsx'  # for single year file name, for intertemporal folder name
     input_files = 'Input_MILP.xlsx'
-    input_dir = 'C:/Users/steft/OneDrive/Desktop/Uni/Master/Masterarbeit/Python/urbs-MILP/Input'
+    input_dir = 'Input'
     input_path = os.path.join(input_dir, input_files)
 
     result_name = 'Run'

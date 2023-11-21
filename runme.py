@@ -5,7 +5,9 @@ import urbs
 def run_optimization(optimization_length=96):
     #input_files = 'single_year_example.xlsx'  # for single year file name, for intertemporal folder name
     input_files = 'Input_MILP.xlsx'
-    input_dir = 'Input'
+
+    current_script_dir = os.path.dirname(os.path.abspath(__file__))
+    input_dir = os.path.join(current_script_dir, 'Input')
     input_path = os.path.join(input_dir, input_files)
 
     result_name = 'Run'

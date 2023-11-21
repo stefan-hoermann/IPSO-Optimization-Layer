@@ -74,17 +74,47 @@ def MILP_partload(m):
     if 'MILP improve_max_gradient' in m._data['MILP'].index:
         m = MILP_max_gradient(m)
 
-    # m.def_test_rule = pyomo.Constraint(
-    #     m.tm,
-    #     (m.pro_partial_output_tuples -
-    #      (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-    #     rule=def_test_rule,
-    #     doc='test rule')
+    m.def_test_rule_1 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=def_test_rule1,
+        doc='test rule')
+    m.def_test_rule_2 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=def_test_rule2,
+        doc='test rule')
+    m.def_test_rule_3 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=def_test_rule3,
+        doc='test rule')
+    m.def_test_rule_4 = pyomo.Constraint(
+        m.tm,
+        (m.pro_partial_output_tuples -
+         (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+        rule=def_test_rule4,
+        doc='test rule')
     return m
 
-def def_test_rule(m, tm, stf, sit, pro, coo):
+def def_test_rule1(m, tm, stf, sit, pro, coo):
     # test rule to force activity of a process
-    return m.pro_mode_run[20, stf, sit, 'CHP1'] == 1
+    return m.pro_mode_run[20, stf, sit, 'CHP1'] == 0
+def def_test_rule4(m, tm, stf, sit, pro, coo):
+    # test rule to force activity of a process
+    return m.pro_mode_run[60, stf, sit, 'CHP1'] == 1
+
+def def_test_rule2(m, tm, stf, sit, pro, coo):
+    # test rule to force activity of a process
+    return m.pro_mode_run[20, stf, sit, 'CHP2'] == 0
+
+def def_test_rule3(m, tm, stf, sit, pro, coo):
+    # test rule to force activity of a process
+    return m.pro_mode_run[20, stf, sit, 'CHP3'] == 0
+
 
 def res_throughput_by_capacity_min_MILP_rule(m, tm, stf, sit, pro):
     # run[0/1] * cap_pro * min-fraction * dt <= tau_pro

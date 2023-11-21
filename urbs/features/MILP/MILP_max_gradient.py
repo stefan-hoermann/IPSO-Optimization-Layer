@@ -66,7 +66,7 @@ def MILP_max_gradient(m):
         m.tm, m.pro_partial_tuples & m.pro_maxgrad_tuples,
         rule=res_process_maxgrad_start_up_rule_3,
         doc='max gradient exception for startup')
-    # Similarily, if min_fraction > max_grad, the gradient condition has to be set inactive for the turnoff
+    # Similarly, if min_fraction > max_grad, the gradient condition has to be set inactive for the turnoff
     # (tau(t-1) -  cap_pro(t) * max_grad * dt) * (1 - turnoff(t))  <= tau(t)
     # -> linearized: tau_pro(t) - (tau_pro(t-1) - cap_pro * max_grad * dt) >= - turnoff[1/0](t) * cap_up * dt
     m.res_process_maxgrad_turn_off = pyomo.Constraint(
@@ -89,7 +89,7 @@ def pro_mode_turnoff_rule2(m, tm, stf, sit, pro):
 
 def pro_mode_turnoff_rule3(m, tm, stf, sit, pro):
     # turnoff <= run[t-1]
-    return m.pro_mode_startup[tm, stf, sit, pro] <= m.pro_mode_run[tm - 1, stf, sit, pro]
+    return m.pro_mode_turnoff[tm, stf, sit, pro] <= m.pro_mode_run[tm - 1, stf, sit, pro]
 
 def res_process_maxgrad_lower_rule(m, t, stf, sit, pro):
     return (m.tau_pro[t - 1, stf, sit, pro] -
@@ -112,13 +112,13 @@ def res_process_maxgrad_start_up_rule_1(m, tm, stf, sit, pro):
                                                m.process_dict['max-grad'][(stf, sit, pro)] * m.dt) \
                <= m.pro_mode_startup[tm, stf, sit, pro] * m.process_dict['cap-up'][(stf, sit, pro)] * m.dt
     else:
-        return res_process_maxgrad_upper_rule()
+        return res_process_maxgrad_upper_rule(m, tm, stf, sit, pro)
 
 def res_process_maxgrad_start_up_rule_2(m, tm, stf, sit, pro):
     if m.process_dict['min-fraction'][(stf, sit, pro)] >= m.process_dict['max-grad'][(stf, sit, pro)]:
         # tau_pro(t) - cap_pro(t) * min_fract  * dt <= (1 - startup(t)) * cap_up * dt
-        return (m.tau_pro[tm, stf, sit, pro] - m.cap_pro[stf, sit, pro] * \
-        m.process_dict['min-fraction'][(stf, sit, pro)] * m.dt <= (1 - m.pro_mode_startup[tm, stf, sit, pro]) *
+        return (m.tau_pro[tm, stf, sit, pro] - m.cap_pro[stf, sit, pro] *
+                m.process_dict['min-fraction'][(stf, sit, pro)] * m.dt <= (1 - m.pro_mode_startup[tm, stf, sit, pro]) *
                 m.process_dict['cap-up'][(stf, sit, pro)])
     else:
         return pyomo.Constraint.Skip
@@ -126,7 +126,7 @@ def res_process_maxgrad_start_up_rule_2(m, tm, stf, sit, pro):
 def res_process_maxgrad_start_up_rule_3(m, tm, stf, sit, pro):
     if m.process_dict['min-fraction'][(stf, sit, pro)] >= m.process_dict['max-grad'][(stf, sit, pro)]:
         # tau_pro(t) - cap_pro(t) * min_fract * dt >= - (1 - startup(t)) * cap_up * dt
-        return (m.tau_pro[tm, stf, sit, pro] - m.cap_pro[stf, sit, pro] * \
+        return (m.tau_pro[tm, stf, sit, pro] - m.cap_pro[stf, sit, pro] *
                 m.process_dict['min-fraction'][(stf, sit, pro)] * m.dt >= -(1 - m.pro_mode_startup[tm, stf, sit, pro]) *
                 m.process_dict['cap-up'][(stf, sit, pro)] * m.dt)
     else:
@@ -140,4 +140,4 @@ def res_process_maxgrad_turn_off_rule(m, tm, stf, sit, pro):
                >= - m.pro_mode_turnoff[tm, stf, sit, pro] * m.process_dict['cap-up'][(stf, sit, pro)] * m.dt
 
     else:
-        return res_process_maxgrad_lower_rule
+        return res_process_maxgrad_lower_rule(m, tm, stf, sit, pro)
